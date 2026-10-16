@@ -83,6 +83,10 @@ Use "kubectl api-resources" for a complete list of supported resources.`,
 			# Watch all pods with more information (such as node name)
 			kubectl klock pods -o wide
 
+			# Watch pods with custom columns, inline or from a file
+			kubectl klock pods -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName
+			kubectl klock pods -o custom-columns-file=columns.txt
+
 			# Watch a specific pod
 			kubectl klock pods my-pod-7d68885db5-6dfst
 
@@ -133,14 +137,15 @@ Use "kubectl api-resources" for a complete list of supported resources.`,
 
 	root.Flags().BoolP("all-namespaces", "A", o.AllNamespaces, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
 	root.Flags().String("field-selector", o.FieldSelector, "Selector (field query) to filter on, supports '=', '==', and '!='.(e.g. --field-selector key1=value1,key2=value2). The server only supports a limited number of field queries per type.")
-	root.Flags().StringP("output", "o", o.Output, "Output format. Only a small subset of formats found in 'kubectl get' are supported by kubectl-klock.")
+	root.Flags().StringP("output", "o", o.Output, "Output format. One of: wide, custom-columns=SPEC, custom-columns-file=FILE. SPEC is a comma separated list of HEADER:JSONPATH pairs, FILE holds the same spec in kubectl's custom-columns template format.")
 	root.Flags().BoolP("watch-kubeconfig", "W", o.WatchKubeconfig, "Restart the watch when the kubeconfig file changes.")
 	root.Flags().StringSliceP("label-columns", "L", o.LabelColumns, "Accepts a comma separated list of labels that are going to be presented as columns.")
 	root.Flags().Var(&o.HideDeleted, "hide-deleted", `Hide deleted elements after this duration. Example: "10s", "1m". Set to "0" to always hide, and "false" to show forever.`)
 	cmdutil.AddLabelSelectorFlagVar(root, &o.LabelSelector)
 
 	root.RegisterFlagCompletionFunc("output", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"wide"}, cobra.ShellCompDirectiveNoFileComp
+		// NoSpace: the user types the spec right after the "=".
+		return []string{"wide", "custom-columns=", "custom-columns-file="}, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 	})
 
 	registerCompletionFuncForGlobalFlags(root, f)

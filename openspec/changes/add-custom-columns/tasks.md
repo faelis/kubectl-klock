@@ -61,7 +61,7 @@ champ `Printer.CustomColumns []CustomColumn`.
 
 ## 4. Ligne de commande et documentation
 
-- [ ] 4.1 `cmd/root.go` : complétion de `-o` (`wide`, `custom-columns=`,
+- [x] 4.1 `cmd/root.go` : complétion de `-o` (`wide`, `custom-columns=`,
   `custom-columns-file=`), aide et exemples ; scénario « Complétion » ;
   vérifié par `go test ./cmd` et `go run . __complete pods -o ""`
 - [ ] 4.2 README : section sur `-o custom-columns` et
