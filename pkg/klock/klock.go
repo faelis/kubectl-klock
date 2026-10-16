@@ -39,8 +39,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/jsonpath"
 
 	"github.com/applejag/kubectl-klock/internal/util"
 	"github.com/applejag/kubectl-klock/pkg/table"
@@ -107,7 +109,8 @@ func Execute(o Options, args []string) error {
 	if err := validateArgs(args); err != nil {
 		return err
 	}
-	if _, err := o.Validate(); err != nil {
+	customColumns, err := o.Validate()
+	if err != nil {
 		return err
 	}
 	var fileEvents chan fsnotify.Event
@@ -155,6 +158,7 @@ func Execute(o Options, args []string) error {
 		HideDeletedAfter: o.HideDeleted,
 		WideOutput:       o.Output == "wide",
 		LabelCols:        o.LabelColumns,
+		CustomColumns:    customColumns,
 	}
 	p := tea.NewProgram(t)
 	w := NewWatcher(o, p, printer, args)
@@ -191,7 +195,7 @@ func Execute(o Options, args []string) error {
 		w.WatchLoop(ctx, restartChan)
 	}()
 
-	_, err := p.Run()
+	_, err = p.Run()
 	return err
 }
 
@@ -301,7 +305,7 @@ func (w *Watcher) watch(ctx context.Context, clearBeforePrinting bool) error {
 		Latest().
 		TransformRequests(func(req *rest.Request) {
 			// Validate already guarantees Output is a valid value.
-			if accept := acceptHeader(strings.HasPrefix(w.Output, "custom-columns")); accept != "" {
+			if accept := acceptHeader(len(w.Printer.CustomColumns) > 0); accept != "" {
 				req.SetHeader("Accept", accept)
 			}
 		}).
@@ -393,6 +397,8 @@ type Printer struct {
 	WideOutput       bool
 	colDefs          []metav1.TableColumnDefinition
 	LabelCols        []string
+	// CustomColumns, when non-empty, switches the printer to custom-columns mode.
+	CustomColumns []CustomColumn
 
 	info           schema.GroupVersionKind
 	apiVersion     string
@@ -411,12 +417,34 @@ func (p *Printer) Clear() {
 }
 
 func (p *Printer) PrintObj(obj runtime.Object, eventType watch.EventType) (tea.Cmd, error) {
+	if len(p.CustomColumns) > 0 {
+		return p.printCustom(obj, eventType)
+	}
 	objTable, err := decodeIntoTable(obj)
 	if err != nil {
 		return nil, err
 	}
 	p.updateColDefHeaders(objTable)
 	return p.addObjectToTable(objTable, eventType)
+}
+
+// printCustom adds obj to the table in custom-columns mode. Objects are full
+// resources here, since no Table representation is requested.
+func (p *Printer) printCustom(obj runtime.Object, eventType watch.EventType) (tea.Cmd, error) {
+	u, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		return nil, fmt.Errorf("want *unstructured.Unstructured, got %T", obj)
+	}
+	headers := make([]string, len(p.CustomColumns))
+	for i, col := range p.CustomColumns {
+		headers[i] = col.Header
+	}
+	p.Table.SetHeaders(headers)
+	row, err := p.customRow(u, eventType)
+	if err != nil {
+		return nil, err
+	}
+	return p.Table.AddRow(row), nil
 }
 
 func (p *Printer) updateColDefHeaders(objTable *metav1.Table) {
@@ -462,41 +490,13 @@ func (p *Printer) addObjectToTable(objTable *metav1.Table, eventType watch.Event
 		if !ok {
 			return nil, fmt.Errorf("want *unstructured.Unstructured, got %T", row.Object.Object)
 		}
-		metadata, ok := unstrucObj.Object["metadata"].(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("metadata: want map[string]any, got %T", unstrucObj.Object["metadata"])
-		}
-		uid, ok := metadata["uid"].(string)
-		if !ok {
-			return nil, fmt.Errorf("metadata.uid: want string, got %T", metadata["uid"])
-		}
-		name, ok := metadata["name"].(string)
-		if !ok {
-			return nil, fmt.Errorf("metadata.name: want string, got %T", metadata["name"])
-		}
-		creationTimestamp, ok := metadata["creationTimestamp"].(string)
-		if !ok {
-			return nil, fmt.Errorf("metadata.creationTimestamp: want string, got %T", metadata["creationTimestamp"])
-		}
-		creationTime, err := time.Parse(time.RFC3339, creationTimestamp)
+		tableRow, creationTime, err := p.baseRow(unstrucObj, eventType)
 		if err != nil {
-			return nil, fmt.Errorf("metadata.creationTimestamp: %w", err)
+			return nil, err
 		}
-		tableRow := table.Row{
-			ID:                        uid,
-			Fields:                    make([]any, 0, len(p.colDefs)),
-			SortKey:                   name,
-			Suggestion:                name,
-			Kubecolor:                 p.Kubecolor,
-			HasLeadingNamespaceColumn: p.printNamespace,
-		}
-		if p.apiVersion == "v1" && p.kind == "Event" {
-			tableRow.SortKey = creationTimestamp
-		}
+		tableRow.HasLeadingNamespaceColumn = p.printNamespace
 		if p.printNamespace {
-			namespace := metadata["namespace"]
-			tableRow.Fields = append(tableRow.Fields, namespace)
-			tableRow.SortKey = fmt.Sprintf("%s/%s", namespace, tableRow.SortKey)
+			tableRow.Fields = append(tableRow.Fields, unstrucObj.GetNamespace())
 		}
 		for i, cell := range row.Cells {
 			if i >= len(p.colDefs) {
@@ -512,18 +512,120 @@ func (p *Printer) addObjectToTable(objTable *metav1.Table, eventType watch.Event
 		for _, label := range p.LabelCols {
 			tableRow.Fields = append(tableRow.Fields, objLabels[label])
 		}
-		switch eventType {
-		case watch.Error:
-			tableRow.Status = table.StatusError
-		case watch.Deleted:
-			tableRow.MarkDeleted()
-		}
 		// it's fine to only use the latest returned cmd, because of how
 		// [table.Model.AddRow] is implemented
 
 		cmd = p.Table.AddRow(tableRow)
 	}
 	return cmd, nil
+}
+
+// baseRow builds the part of a table row shared by table and custom-columns
+// modes: identity, sort key, suggestion, theme and event status. Fields is
+// left empty and HasLeadingNamespaceColumn false; callers fill both.
+//
+// It returns the row and the object's creation time. It returns an error if
+// metadata.uid, metadata.name or metadata.creationTimestamp is missing or
+// malformed.
+func (p *Printer) baseRow(obj *unstructured.Unstructured, eventType watch.EventType) (table.Row, time.Time, error) {
+	metadata, ok := obj.Object["metadata"].(map[string]any)
+	if !ok {
+		return table.Row{}, time.Time{}, fmt.Errorf("metadata: want map[string]any, got %T", obj.Object["metadata"])
+	}
+	uid, ok := metadata["uid"].(string)
+	if !ok {
+		return table.Row{}, time.Time{}, fmt.Errorf("metadata.uid: want string, got %T", metadata["uid"])
+	}
+	name, ok := metadata["name"].(string)
+	if !ok {
+		return table.Row{}, time.Time{}, fmt.Errorf("metadata.name: want string, got %T", metadata["name"])
+	}
+	creationTimestamp, ok := metadata["creationTimestamp"].(string)
+	if !ok {
+		return table.Row{}, time.Time{}, fmt.Errorf("metadata.creationTimestamp: want string, got %T", metadata["creationTimestamp"])
+	}
+	creationTime, err := time.Parse(time.RFC3339, creationTimestamp)
+	if err != nil {
+		return table.Row{}, time.Time{}, fmt.Errorf("metadata.creationTimestamp: %w", err)
+	}
+	row := table.Row{
+		ID:         uid,
+		SortKey:    name,
+		Suggestion: name,
+		Kubecolor:  p.Kubecolor,
+	}
+	if p.apiVersion == "v1" && p.kind == "Event" {
+		row.SortKey = creationTimestamp
+	}
+	if p.printNamespace {
+		// The namespace keeps the sort order stable in all-namespaces mode
+		// even when no NAMESPACE cell is shown.
+		row.SortKey = fmt.Sprintf("%s/%s", metadata["namespace"], row.SortKey)
+	}
+	switch eventType {
+	case watch.Error:
+		row.Status = table.StatusError
+	case watch.Deleted:
+		row.MarkDeleted()
+	}
+	return row, creationTime, nil
+}
+
+// customRow builds the table row for obj in custom-columns mode: one cell
+// per configured column and no NAMESPACE cell.
+//
+// It returns an error if the object's metadata is malformed (see baseRow).
+// A failing JSONPath expression does not fail the row; it shows in its cell.
+func (p *Printer) customRow(obj *unstructured.Unstructured, eventType watch.EventType) (table.Row, error) {
+	row, _, err := p.baseRow(obj, eventType)
+	if err != nil {
+		return table.Row{}, err
+	}
+	row.Fields = make([]any, 0, len(p.CustomColumns))
+	for _, col := range p.CustomColumns {
+		cell := colorCell(evalCell(col.Path, obj.Object), eventType)
+		// Keep uncolored cells as plain strings: wrapping every value in a
+		// no-op style only adds work for the table renderer.
+		if styled, ok := cell.(table.StyledColumn); ok && styled.Style.GetForeground() == (lipgloss.NoColor{}) {
+			cell = styled.Value
+		}
+		row.Fields = append(row.Fields, cell)
+	}
+	return row, nil
+}
+
+// evalCell evaluates path against obj and renders the result like
+// "kubectl get -o custom-columns": values joined by ",", "<none>" when empty,
+// terminal escape sequences neutralised. An evaluation error is returned as
+// "<error: ...>" so one bad object does not stop the watch.
+func evalCell(path *jsonpath.JSONPath, obj map[string]any) string {
+	values, err := path.FindResults(obj)
+	if err != nil {
+		return fmt.Sprintf("<error: %v>", err)
+	}
+	if len(values) == 0 || len(values[0]) == 0 {
+		return "<none>"
+	}
+	var parts []string
+	for _, vs := range values {
+		for _, v := range vs {
+			parts = append(parts, printers.EscapeTerminal(fmt.Sprint(v.Interface())))
+		}
+	}
+	return strings.Join(parts, ",")
+}
+
+// colorCell styles a cell as a fraction ("1/2") or a status word. Deleted
+// rows stay unstyled so the grayed-out row is not colored.
+func colorCell(cell any, eventType watch.EventType) any {
+	cellStr := fmt.Sprint(cell)
+	if eventType == watch.Deleted {
+		return cellStr
+	}
+	if fractionStyle, ok := FractionStyle(cellStr); ok {
+		return table.StyledColumn{Value: cell, Style: fractionStyle}
+	}
+	return StatusColumn(cellStr)
 }
 
 func (p *Printer) parseCell(cell any, row metav1.TableRow, eventType watch.EventType, object map[string]any, colDef metav1.TableColumnDefinition, creationTime time.Time) any {
@@ -597,19 +699,8 @@ func (p *Printer) parseCell(cell any, row metav1.TableRow, eventType watch.Event
 			}
 		}
 		return StatusColumn(cellStr)
-	// Only parse fraction (e.g "1/2") if the resources was not deleted,
-	// so we don't have colored fraction on a grayed-out row.
-	case eventType != watch.Deleted:
-		fractionStyle, ok := FractionStyle(cellStr)
-		if ok {
-			return table.StyledColumn{
-				Value: cell,
-				Style: fractionStyle,
-			}
-		}
-		return StatusColumn(cellStr)
 	default:
-		return cellStr
+		return colorCell(cell, eventType)
 	}
 }
 

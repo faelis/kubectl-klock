@@ -46,17 +46,17 @@ map[string]any) string`, `func (p *Printer) customRow(obj
 *unstructured.Unstructured, eventType watch.EventType) (table.Row, error)`,
 champ `Printer.CustomColumns []CustomColumn`.
 
-- [ ] 3.1 `evalCell` : jointure `,`, `<none>`, `EscapeTerminal`,
+- [x] 3.1 `evalCell` : jointure `,`, `<none>`, `EscapeTerminal`,
   `<error: …>` ; scénarios « Champ absent », « Valeurs multiples », « Champ
   hors de la table du serveur », « Erreur d'évaluation sur un objet »,
   « Annotation avec séquence ANSI » ; vérifié par `go test ./pkg/klock`
-- [ ] 3.2 `baseRow` extrait de `addObjectToTable`, `customRow` et chemin
+- [x] 3.2 `baseRow` extrait de `addObjectToTable`, `customRow` et chemin
   custom de `PrintObj` (en-têtes, coloration, suppression, pas de
   `NAMESPACE`) ; scénarios « Deux colonnes inline » (cellules),
   « Modification », « Suppression », « Fraction incomplète », « Statut
   d'erreur », « Ligne supprimée », « Toutes les namespaces » ; vérifié par
   `go test ./...`, tests du mode tableau toujours verts
-- [ ] 3.3 `Execute` branche les colonnes sur `Printer` et la requête ;
+- [x] 3.3 `Execute` branche les colonnes sur `Printer` et la requête ;
   vérifié par `go build ./...` et `go vet ./...`
 
 ## 4. Ligne de commande et documentation
