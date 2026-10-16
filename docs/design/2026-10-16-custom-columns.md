@@ -19,13 +19,16 @@ direct les mêmes colonnes qu'avec kubectl.
 
 - Formats acceptés : `-o custom-columns=SPEC` et
   `-o custom-columns-file=PATH`.
-- Rendu des cellules : la valeur brute, comme kubectl, plus la coloration
+- Rendu des cellules : la valeur telle qu'évaluée, comme kubectl (sauf
+  l'échappement ci-dessous), plus la coloration
   déjà calculée d'après la valeur (fractions `1/2`, statuts `Running`,
   `Error`…). Les lignes supprimées restent grisées. Les horodatages restent
   bruts.
 - Caractères de contrôle : après `printers.EscapeTerminal`, chaque caractère
-  de contrôle ou de contrôle bidirectionnel s'affiche échappé (`\n`,
-  `\t`, `\u009b`). Choix volontairement plus strict que kubectl : un saut
+  de contrôle, de contrôle bidirectionnel, séparateur de ligne ou de
+  paragraphe (Zl, Zp) et de format invisible (Cf) s'affiche échappé (`\n`,
+  `\t`, `\u009b`). Valeurs, messages `<error: …>` et en-têtes sont
+  concernés. Choix volontairement plus strict que kubectl : un saut
   de ligne brut casserait la mise en page de l'interface.
 - `-L` avec custom-columns : erreur, comme kubectl. Un label se lit déjà
   avec `.metadata.labels.<clé>`.

@@ -59,8 +59,11 @@ d'affichage) ; ajouter un journal à klock.
    les deux chemins. `HasLeadingNamespaceColumn` reste à `false` en mode
    custom.
 5. **Cellule.** `evalCell(path, obj)` reproduit `printOneObject` : valeurs
-   jointes par `,`, `<none>` si le résultat est vide, `printers.EscapeTerminal`
-   sur chaque valeur, `<error: …>` si l'évaluation échoue. La coloration
+   jointes par `,`, `<none>` si le résultat est vide, `<error: …>` si
+   l'évaluation échoue. Chaque valeur, chaque message d'erreur et chaque
+   en-tête passe par `sanitizeCell` : `printers.EscapeTerminal`, puis
+   échappement des contrôles, des contrôles bidi et des catégories Unicode
+   Zl, Zp et Cf. La coloration
    réutilise la branche par défaut de `parseCell` (`FractionStyle` puis
    `StatusColumn`), sauf pour un événement `DELETED`.
 

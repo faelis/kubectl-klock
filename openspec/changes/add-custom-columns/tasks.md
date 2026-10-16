@@ -70,7 +70,7 @@ champ `Printer.CustomColumns []CustomColumn`.
 
 ## 4bis. Corrections de revue
 
-- [ ] 4b.1 Assainissement étendu (caractères invisibles `Zl`, `Zp`, `Cf`)
+- [x] 4b.1 Assainissement étendu (caractères invisibles `Zl`, `Zp`, `Cf`)
   et en-têtes assainis ; scénarios « Cellule très longue », « Saut de
   ligne et tabulation », « Autres caractères de contrôle », « Caractères
   invisibles », « Message d'erreur échappé », « En-tête avec séquence

@@ -143,8 +143,10 @@ that are missing from the server's table, such as the container image:
 kubectl klock pods -o 'custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[0].image'
 ```
 
-Control characters in values are shown escaped (for example `\n` for a
-newline), so a value cannot break the table layout.
+Control characters, bidirectional controls, line and paragraph separators
+and invisible format characters are shown escaped (for example `\n` for a
+newline). This applies to values, to `<error: ...>` messages and to
+headers, so they cannot break the table layout.
 
 The flag `-o custom-columns-file=FILE` reads the same spec from a file.
 The first line holds the headers and the second line holds the expressions,
