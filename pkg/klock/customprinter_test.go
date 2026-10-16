@@ -113,6 +113,46 @@ func TestEvalCell(t *testing.T) {
 			}},
 			want: "^[[31mrouge",
 		},
+		{
+			name: "newline and tab are escaped (Scenario: Saut de ligne et tabulation)",
+			spec: "custom-columns=A:.metadata.annotations.x",
+			obj: map[string]any{"metadata": map[string]any{
+				"annotations": map[string]any{"x": "l1\nl2\tt"},
+			}},
+			want: `l1\nl2\tt`,
+		},
+		{
+			name: "bell is escaped (Scenario: Autres caracteres de controle)",
+			spec: "custom-columns=A:.metadata.annotations.x",
+			obj: map[string]any{"metadata": map[string]any{
+				"annotations": map[string]any{"x": "\a"},
+			}},
+			want: `\a`,
+		},
+		{
+			name: "C1 CSI is escaped (Scenario: Autres caracteres de controle)",
+			spec: "custom-columns=A:.metadata.annotations.x",
+			obj: map[string]any{"metadata": map[string]any{
+				"annotations": map[string]any{"x": "\u009b"},
+			}},
+			want: `\u009b`,
+		},
+		{
+			name: "bidi override is escaped (Scenario: Autres caracteres de controle)",
+			spec: "custom-columns=A:.metadata.annotations.x",
+			obj: map[string]any{"metadata": map[string]any{
+				"annotations": map[string]any{"x": "\u202e"},
+			}},
+			want: `\u202e`,
+		},
+		{
+			name: "error message is escaped (Scenario: Message d'erreur echappe)",
+			spec: "custom-columns=X:.metadata.annotations.x[?(@.a)]",
+			obj: map[string]any{"metadata": map[string]any{
+				"annotations": map[string]any{"x": "\x1b[31m"},
+			}},
+			wantPrefix: "<error:",
+		},
 	}
 
 	for _, test := range tests {
@@ -196,6 +236,9 @@ func TestCustomRowColoring(t *testing.T) {
 			if test.wantStyle == nil {
 				if isStyled && styled.Style.GetForeground() == StyleFractionWarning.GetForeground() {
 					t.Errorf("deleted row cell has fraction warning style")
+				}
+				if row.Fields[0] != test.value {
+					t.Errorf("Fields[0] = %#v, want raw string %q (Scenario: Ligne supprimee)", row.Fields[0], test.value)
 				}
 				if row.Status != table.StatusDeleted {
 					t.Errorf("Status = %v, want StatusDeleted", row.Status)

@@ -40,8 +40,14 @@ func TestOutputFlagCompletion(t *testing.T) {
 
 	var got []string
 	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		// Skip the directive line (":4") and cobra's stderr hint.
-		if strings.HasPrefix(line, ":") || strings.HasPrefix(line, "Completion ended") {
+		// Skip the directive line (":6") and cobra's stderr hint.
+		if strings.HasPrefix(line, ":") {
+			if line != ":6" {
+				t.Errorf("completion directive = %q, want %q", line, ":6")
+			}
+			continue
+		}
+		if strings.HasPrefix(line, "Completion ended") {
 			continue
 		}
 		got = append(got, line)
