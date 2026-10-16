@@ -18,6 +18,7 @@
 package klock
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -49,9 +50,13 @@ func ParseCustomColumns(output string) ([]CustomColumn, error) {
 	}
 	if err != nil {
 		// kubectl's file-not-found message ends with a newline.
-		return nil, fmt.Errorf("%s", strings.TrimSpace(err.Error()))
+		return nil, errors.New(strings.TrimSpace(err.Error()))
 	}
-	columns := printer.(*get.CustomColumnsPrinter).Columns
+	cc, ok := printer.(*get.CustomColumnsPrinter)
+	if !ok {
+		return nil, fmt.Errorf("unexpected printer type %T for %q", printer, output)
+	}
+	columns := cc.Columns
 	result := make([]CustomColumn, len(columns))
 	for i, col := range columns {
 		// Parse once at startup so a bad expression fails fast instead of on

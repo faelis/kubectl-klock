@@ -21,9 +21,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -304,7 +306,7 @@ func (w *Watcher) watch(ctx context.Context, clearBeforePrinting bool) error {
 		SingleResourceType().
 		Latest().
 		TransformRequests(func(req *rest.Request) {
-			// Validate already guarantees Output is a valid value.
+			// Custom columns need full objects, not the server-side Table.
 			if accept := acceptHeader(len(w.Printer.CustomColumns) > 0); accept != "" {
 				req.SetHeader("Accept", accept)
 			}
@@ -596,12 +598,12 @@ func (p *Printer) customRow(obj *unstructured.Unstructured, eventType watch.Even
 
 // evalCell evaluates path against obj and renders the result like
 // "kubectl get -o custom-columns": values joined by ",", "<none>" when empty,
-// terminal escape sequences neutralised. An evaluation error is returned as
+// control characters escaped (see sanitizeCell). An evaluation error is returned as
 // "<error: ...>" so one bad object does not stop the watch.
 func evalCell(path *jsonpath.JSONPath, obj map[string]any) string {
 	values, err := path.FindResults(obj)
 	if err != nil {
-		return fmt.Sprintf("<error: %v>", err)
+		return sanitizeCell(fmt.Sprintf("<error: %v>", err))
 	}
 	if len(values) == 0 || len(values[0]) == 0 {
 		return "<none>"
@@ -609,10 +611,32 @@ func evalCell(path *jsonpath.JSONPath, obj map[string]any) string {
 	var parts []string
 	for _, vs := range values {
 		for _, v := range vs {
-			parts = append(parts, printers.EscapeTerminal(fmt.Sprint(v.Interface())))
+			parts = append(parts, sanitizeCell(fmt.Sprint(v.Interface())))
 		}
 	}
 	return strings.Join(parts, ",")
+}
+
+// sanitizeCell makes s safe to show in a single table cell.
+//
+// It first applies kubectl's printers.EscapeTerminal (ESC becomes "^[", "\r"
+// is handled there), then replaces every remaining control or bidi control
+// rune with its Go-quoted form without quotes ("\n", "\t", "\u009b").
+// This deliberately goes further than kubectl: a raw newline would break the
+// TUI layout, and C1 or bidi controls can still alter the terminal or hide
+// text.
+func sanitizeCell(s string) string {
+	s = printers.EscapeTerminal(s)
+	var b strings.Builder
+	for _, r := range s {
+		if unicode.IsControl(r) || unicode.Is(unicode.Bidi_Control, r) {
+			q := strconv.QuoteRune(r)
+			b.WriteString(q[1 : len(q)-1]) // drop the surrounding apostrophes
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 // colorCell styles a cell as a fraction ("1/2") or a status word. Deleted
