@@ -61,11 +61,14 @@ func ParseCustomColumns(output string) ([]CustomColumn, error) {
 	for i, col := range columns {
 		// Parse once at startup so a bad expression fails fast instead of on
 		// the first watch event. Missing keys render empty, as in kubectl.
-		path := jsonpath.New(col.Header).AllowMissingKeys(true)
+		// Sanitize once: the header is printed in the TUI and in errors, and
+		// comes from the user's spec or file.
+		header := sanitizeCell(col.Header)
+		path := jsonpath.New(header).AllowMissingKeys(true)
 		if err := path.Parse(col.FieldSpec); err != nil {
-			return nil, fmt.Errorf("column %q: %w", col.Header, err)
+			return nil, fmt.Errorf("column %q: %w", header, err)
 		}
-		result[i] = CustomColumn{Header: col.Header, Path: path}
+		result[i] = CustomColumn{Header: header, Path: path}
 	}
 	return result, nil
 }

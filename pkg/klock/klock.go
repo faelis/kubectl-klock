@@ -598,8 +598,8 @@ func (p *Printer) customRow(obj *unstructured.Unstructured, eventType watch.Even
 
 // evalCell evaluates path against obj and renders the result like
 // "kubectl get -o custom-columns": values joined by ",", "<none>" when empty,
-// control characters escaped (see sanitizeCell). An evaluation error is returned as
-// "<error: ...>" so one bad object does not stop the watch.
+// control characters escaped (see sanitizeCell). An evaluation error is
+// returned as "<error: ...>" so one bad object does not stop the watch.
 func evalCell(path *jsonpath.JSONPath, obj map[string]any) string {
 	values, err := path.FindResults(obj)
 	if err != nil {
@@ -621,15 +621,18 @@ func evalCell(path *jsonpath.JSONPath, obj map[string]any) string {
 //
 // It first applies kubectl's printers.EscapeTerminal (ESC becomes "^[", "\r"
 // is handled there), then replaces every remaining control or bidi control
-// rune with its Go-quoted form without quotes ("\n", "\t", "\u009b").
+// rune, line or paragraph separator (Zl, Zp) and invisible format rune (Cf,
+// such as zero-width or soft hyphen) with its Go-quoted form without quotes
+// ("\n", "\t", "\u009b", "\u200b").
 // This deliberately goes further than kubectl: a raw newline would break the
-// TUI layout, and C1 or bidi controls can still alter the terminal or hide
-// text.
+// TUI layout, and C1, bidi or invisible runes can still alter the terminal or
+// hide text.
 func sanitizeCell(s string) string {
 	s = printers.EscapeTerminal(s)
 	var b strings.Builder
 	for _, r := range s {
-		if unicode.IsControl(r) || unicode.Is(unicode.Bidi_Control, r) {
+		if unicode.IsControl(r) || unicode.Is(unicode.Bidi_Control, r) ||
+			unicode.In(r, unicode.Zl, unicode.Zp, unicode.Cf) {
 			q := strconv.QuoteRune(r)
 			b.WriteString(q[1 : len(q)-1]) // drop the surrounding apostrophes
 			continue
