@@ -88,7 +88,7 @@ champ `Printer.CustomColumns []CustomColumn`.
 - [x] 5.4 review : judge lance `/review`, aucun constat Critical ou
   Important ouvert
 - [x] 5.5 security : `/cso`, aucun constat bloquant
-- [ ] 5.6 adr : `docs/adrs/0001-custom-columns-objets-complets.md`, format
+- [x] 5.6 adr : `docs/adrs/0001-custom-columns-objets-complets.md`, format
   Nygard
 - [ ] 5.7 release-doc : writer lance `/document-release` sur les docs
   touchées par la branche
