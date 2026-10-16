@@ -87,9 +87,10 @@ résultat vide MUST s'afficher `<none>`.
 
 ### Requirement: Échappement des séquences terminal
 
-klock MUST neutraliser les séquences d'échappement terminal et les
-caractères de contrôle présents dans les cellules, valeurs comme messages
-d'erreur. Ces caractères MUST s'afficher sous une forme visible.
+klock MUST neutraliser les séquences d'échappement terminal, les
+caractères de contrôle et les caractères invisibles présents dans les
+cellules (valeurs comme messages d'erreur) et dans les en-têtes. Ces
+caractères MUST s'afficher sous une forme visible.
 
 #### Scenario: Annotation avec séquence ANSI
 
@@ -108,7 +109,20 @@ d'erreur. Ces caractères MUST s'afficher sous une forme visible.
 #### Scenario: Autres caractères de contrôle
 
 - **WHEN** l'annotation `x` contient `U+0007`, `U+009B` ou `U+202E`
-- **THEN** la cellule affiche respectivement `\a`, `\u009b`, `‮`
+- **THEN** la cellule affiche respectivement `\a`, `\u009b`, `\u202e`
+
+#### Scenario: Caractères invisibles
+
+- **WHEN** l'annotation `x` contient `U+200B`, `U+2028` ou `U+FEFF`
+- **THEN** la cellule affiche respectivement `\u200b`, `\u2028`,
+  `\ufeff`
+
+#### Scenario: En-tête avec séquence ANSI
+
+- **WHEN** la spec est `-o custom-columns=` suivi de `X`, de l'octet
+  `0x1b`, de `[31m:.metadata.name`
+- **THEN** l'en-tête de la colonne est `X^[[31m`
+- **AND** il ne contient pas l'octet `0x1b`
 
 #### Scenario: Message d'erreur échappé
 

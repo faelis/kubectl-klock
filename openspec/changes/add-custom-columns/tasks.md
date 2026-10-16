@@ -68,6 +68,15 @@ champ `Printer.CustomColumns []CustomColumn`.
   `-o custom-columns-file` ; vérifié par `npx markdownlint-cli2` et
   `uvx reuse lint` sans erreur sur les fichiers suivis
 
+## 4bis. Corrections de revue
+
+- [ ] 4b.1 Assainissement étendu (caractères invisibles `Zl`, `Zp`, `Cf`)
+  et en-têtes assainis ; scénarios « Cellule très longue », « Saut de
+  ligne et tabulation », « Autres caractères de contrôle », « Caractères
+  invisibles », « Message d'erreur échappé », « En-tête avec séquence
+  ANSI » ; test du mode tableau après l'extraction de `baseRow` ; vérifié
+  par `go test ./...`
+
 ## 5. Vérification et livraison
 
 - [x] 5.1 verify : skeptic vérifie chaque scénario de la spec, verdict PASS
