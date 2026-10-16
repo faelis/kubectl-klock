@@ -60,19 +60,35 @@ type Options struct {
 	WatchKubeconfig bool                   `koanf:"watch-kubeconfig"`
 }
 
-func (o Options) Validate() error {
-	const allowedFormats = "wide"
+// Validate checks the options and returns the custom columns requested by
+// Output, or nil when Output is not a custom-columns format.
+//
+// It returns an error if Output is unsupported or unknown, if the
+// custom-columns spec is invalid, or if LabelColumns is combined with a
+// custom-columns format.
+func (o Options) Validate() ([]CustomColumn, error) {
+	const allowedFormats = "wide, custom-columns=..., custom-columns-file=..."
+	cols, err := ParseCustomColumns(o.Output)
+	if err != nil {
+		return nil, err
+	}
+	if cols != nil {
+		if len(o.LabelColumns) > 0 {
+			return nil, fmt.Errorf("--label-columns option cannot be used with %s printer", o.Output)
+		}
+		return cols, nil
+	}
 	switch o.Output {
 	case "", "wide":
 		// Valid
-		return nil
-	case "custom-columns", "custom-columns-file", "go-template",
+		return nil, nil
+	case "go-template",
 		"go-template-file", "json", "jsonpath", "jsonpath-as-json",
 		"jsonpath-file", "name", "template", "templatefile", "yaml":
-		return fmt.Errorf("unsupported output format: %q, allowed formats are: %s", o.Output, allowedFormats)
+		return nil, fmt.Errorf("unsupported output format: %q, allowed formats are: %s", o.Output, allowedFormats)
 
 	default:
-		return fmt.Errorf("unknown output format: %q, allowed formats are: %s", o.Output, allowedFormats)
+		return nil, fmt.Errorf("unknown output format: %q, allowed formats are: %s", o.Output, allowedFormats)
 	}
 }
 
@@ -91,7 +107,7 @@ func Execute(o Options, args []string) error {
 	if err := validateArgs(args); err != nil {
 		return err
 	}
-	if err := o.Validate(); err != nil {
+	if _, err := o.Validate(); err != nil {
 		return err
 	}
 	var fileEvents chan fsnotify.Event

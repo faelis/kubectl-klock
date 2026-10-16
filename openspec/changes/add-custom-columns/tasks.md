@@ -18,14 +18,14 @@ Interfaces (`pkg/klock`) : `type CustomColumn struct { Header string; Path
 ([]CustomColumn, error)`, `func (o Options) Validate() ([]CustomColumn,
 error)`.
 
-- [ ] 1.1 `ParseCustomColumns` via `get.NewCustomColumnsPrintFlags()`,
+- [x] 1.1 `ParseCustomColumns` via `get.NewCustomColumnsPrintFlags()`,
   parsing JSONPath au démarrage, blancs finaux retirés des messages ;
   scénarios « Deux colonnes inline » (en-têtes), « Expression entre
   accolades », « Fichier valide », « Spec vide », « Colonne sans
   expression », « Expression JSONPath invalide », « Fichier introuvable »,
   « En-têtes et expressions en nombre différent » ; vérifié par
   `go test ./pkg/klock`
-- [ ] 1.2 `Options.Validate` renvoie les colonnes, refuse `-L` en mode
+- [x] 1.2 `Options.Validate` renvoie les colonnes, refuse `-L` en mode
   custom, liste les nouveaux formats dans le message de refus ; scénarios
   « Combinaison avec -L », « Format toujours refusé » ; vérifié par
   `go test ./pkg/klock`
