@@ -23,6 +23,10 @@ direct les mêmes colonnes qu'avec kubectl.
   déjà calculée d'après la valeur (fractions `1/2`, statuts `Running`,
   `Error`…). Les lignes supprimées restent grisées. Les horodatages restent
   bruts.
+- Caractères de contrôle : après `printers.EscapeTerminal`, chaque caractère
+  de contrôle ou de contrôle bidirectionnel s'affiche échappé (`\n`,
+  `\t`, `\u009b`). Choix volontairement plus strict que kubectl : un saut
+  de ligne brut casserait la mise en page de l'interface.
 - `-L` avec custom-columns : erreur, comme kubectl. Un label se lit déjà
   avec `.metadata.labels.<clé>`.
 - `-A` avec custom-columns : pas de colonne `NAMESPACE` ajoutée, comme
@@ -33,16 +37,16 @@ direct les mêmes colonnes qu'avec kubectl.
 klock demande les objets complets et évalue lui-même le JSONPath.
 
 1. Le parsing des colonnes reprend celui de kubectl :
-   `get.NewCustomColumnsPrinterFromSpec` et
-   `get.NewCustomColumnsPrinterFromTemplate` (paquet
+   `get.NewCustomColumnsPrintFlags().ToPrinter` (paquet
    `k8s.io/kubectl/pkg/cmd/get`, déjà en dépendance). klock garde seulement
    le champ `Columns`.
-2. En mode custom-columns, `transformRequests` n'envoie plus l'en-tête
+2. En mode custom-columns, `acceptHeader` n'envoie plus l'en-tête
    `Accept: as=Table`. La liste initiale et le watch renvoient alors des
    `*unstructured.Unstructured` complets. kubectl fait de même
    (`get.go`, `transformRequests`).
 3. `Printer.PrintObj` choisit son chemin. Le mode tableau ne change pas. Le
-   mode custom pose les en-têtes `Column.Header` une fois, puis évalue chaque
+   mode custom pose les en-têtes `Column.Header` à chaque événement, puis
+   évalue chaque
    colonne avec `client-go/util/jsonpath` : `AllowMissingKeys(true)`,
    valeurs jointes par `,`, `<none>` quand rien ne correspond. Les
    expressions sont parsées une seule fois.
@@ -75,5 +79,5 @@ cluster.
 
 ## Taille
 
-S : deux fichiers de code (`pkg/klock/klock.go`, `cmd/root.go`), le README
-et des tests.
+S : trois fichiers de code (`pkg/klock/klock.go`,
+`pkg/klock/customcolumns.go`, `cmd/root.go`), le README et des tests.

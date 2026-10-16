@@ -39,13 +39,14 @@ Aucune : le dépôt n'a pas encore de spec.
 
 ## Impact
 
-- Code : `pkg/klock/klock.go` (options, requête, `Printer`), `cmd/root.go`
+- Code : `pkg/klock/klock.go` (options, requête, `Printer`),
+  `pkg/klock/customcolumns.go` (nouveau : lecture de la spec), `cmd/root.go`
   (aide, exemples, complétion).
 - Dépendances : aucune nouvelle. klock importe en plus
   `k8s.io/kubectl/pkg/cmd/get` et `k8s.io/client-go/util/jsonpath`, deux
   modules déjà requis par `go.mod`.
 - Documentation : README, section sur les formats de sortie.
-- Taille : S. Le changement reste dans un paquet et touche deux fichiers de
+- Taille : S. Le changement reste dans un paquet et touche trois fichiers de
   code. Aucun composant ni interface externe nouveau.
 
 ## Hors périmètre

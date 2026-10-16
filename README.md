@@ -91,7 +91,7 @@ kubectl klock pods
 kubectl klock pods -o wide
 
 # Watch pods with columns of your choice, written as JSONPath expressions
-kubectl klock pods -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName
+kubectl klock pods -o 'custom-columns=NAME:.metadata.name,NODE:.spec.nodeName'
 
 # Same, but with the columns read from a file
 kubectl klock pods -o custom-columns-file=columns.txt
@@ -135,16 +135,20 @@ There's also some hotkeys available:
 The flag `-o custom-columns=SPEC` picks the columns to show,
 like `kubectl get -o custom-columns`.
 `SPEC` is a comma-separated list of `HEADER:jsonpath` pairs.
+The path may be written `.a.b`, `a.b`, `{.a.b}` or `{a.b}`.
 Each expression is evaluated on the full object, so you can show fields
 that are missing from the server's table, such as the container image:
 
 ```sh
-kubectl klock pods -o custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[0].image
+kubectl klock pods -o 'custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[0].image'
 ```
+
+Control characters in values are shown escaped (for example `\n` for a
+newline), so a value cannot break the table layout.
 
 The flag `-o custom-columns-file=FILE` reads the same spec from a file.
 The first line holds the headers and the second line holds the expressions,
-both separated by blanks:
+both separated by whitespace:
 
 ```text
 NAME            NODE

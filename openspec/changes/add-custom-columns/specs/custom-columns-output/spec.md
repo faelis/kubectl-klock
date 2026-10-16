@@ -179,7 +179,7 @@ Avec `--all-namespaces`, klock MUST NOT ajouter de colonne `NAMESPACE` en
 mode custom-columns. Les lignes MUST rester triées par
 `namespace/nom`.
 
-#### Scenario: Toutes les namespaces
+#### Scenario: Tous les namespaces
 
 - **WHEN** l'utilisateur lance `kubectl klock pods -A -o
   custom-columns=NAME:.metadata.name` avec `b/x` et `a/y`
