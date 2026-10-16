@@ -71,7 +71,7 @@ champ `Printer.CustomColumns []CustomColumn`.
 ## 5. Vérification et livraison
 
 - [x] 5.1 verify : skeptic vérifie chaque scénario de la spec, verdict PASS
-- [ ] 5.2 e2e : `/qa` sur un cluster `kind` jetable (jamais le contexte
+- [x] 5.2 e2e : `/qa` sur un cluster `kind` jetable (jamais le contexte
   courant), pods réels, spec inline et fichier, création, modification,
   suppression
 - [x] 5.3 ci — skipped: `test.yml` lance déjà `go test ./...`, aucun
