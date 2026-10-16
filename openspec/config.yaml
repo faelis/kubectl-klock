@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: 2026 faelis
+#
+# SPDX-License-Identifier: CC0-1.0
+
+schema: spec-driven
+
+context: |
+  Language: fr
+  All artifacts must be written in fr.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+  Rédaction : skill redaction (langue native, phrases claires, sans tics d'IA).
+  Pile technique : Go (voir go.mod), plugin kubectl ; TUI bubbletea/lipgloss ;
+  client Kubernetes k8s.io/cli-runtime, client-go, kubectl ; thème kubecolor.
+  Tests : paquet testing de Go, `go test ./...` (CI : .github/workflows/test.yml).
+  Code : guide Google du langage ; docstring sur chaque symbole public.
+  Licences : REUSE, en-tête SPDX sur chaque nouveau fichier.
+  Markdown : markdownlint, lignes de 80 caractères au plus.
+
+rules:
+  proposal:
+    - Indiquer la taille S, M ou L et la raison, selon la grille arc42.
+    - Lister ce qui est hors périmètre.
+  specs:
+    - Chaque exigence a au moins un scénario WHEN/THEN vérifiable par un test automatisé.
+    - Les scénarios donnent des valeurs exactes (entrées, sorties, messages, codes).
+    - Toute exigence qui peut échouer a au moins un scénario d'erreur.
+  design:
+    - "S : contraintes, solution, risques, en quelques lignes."
+    - "M : les chapitres arc42 touchés. L : arc42 complet via /arc42-spec."
+    - Toujours une conception de la journalisation, un niveau ou plusieurs selon la complexité, avec la raison.
+  tasks:
+    - Pas de code de test dans les tâches ; test-author l'écrit à partir des scénarios.
+    - Chaque tâche cite les scénarios qu'elle couvre.
+    - Une tâche correspond à un cycle rouge puis vert vérifiable.
+    - "Premier groupe « 0. » : la première tâche est `0.1 plan-rev` (revue du plan avant exécution)."
+    - "Dernier groupe : les étapes `verify`, `review`, `security`, `adr` et `release-doc`, plus `e2e` et `ci` quand elles s'appliquent."
+    - "Une étape sautée reste cochée avec sa raison : `- [x] … — skipped:` suivi de la raison."
+    - "`archive` et `ship` vont en fin de fichier, sous `## Workflow follow-up`, en puces simples sans case (une case ouverte rendrait « no open box » impossible)."
