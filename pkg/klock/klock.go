@@ -21,9 +21,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -39,8 +41,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/jsonpath"
 
 	"github.com/applejag/kubectl-klock/internal/util"
 	"github.com/applejag/kubectl-klock/pkg/table"
@@ -60,19 +64,35 @@ type Options struct {
 	WatchKubeconfig bool                   `koanf:"watch-kubeconfig"`
 }
 
-func (o Options) Validate() error {
-	const allowedFormats = "wide"
+// Validate checks the options and returns the custom columns requested by
+// Output, or nil when Output is not a custom-columns format.
+//
+// It returns an error if Output is unsupported or unknown, if the
+// custom-columns spec is invalid, or if LabelColumns is combined with a
+// custom-columns format.
+func (o Options) Validate() ([]CustomColumn, error) {
+	const allowedFormats = "wide, custom-columns=..., custom-columns-file=..."
+	cols, err := ParseCustomColumns(o.Output)
+	if err != nil {
+		return nil, err
+	}
+	if cols != nil {
+		if len(o.LabelColumns) > 0 {
+			return nil, fmt.Errorf("--label-columns option cannot be used with %s printer", o.Output)
+		}
+		return cols, nil
+	}
 	switch o.Output {
 	case "", "wide":
 		// Valid
-		return nil
-	case "custom-columns", "custom-columns-file", "go-template",
+		return nil, nil
+	case "go-template",
 		"go-template-file", "json", "jsonpath", "jsonpath-as-json",
 		"jsonpath-file", "name", "template", "templatefile", "yaml":
-		return fmt.Errorf("unsupported output format: %q, allowed formats are: %s", o.Output, allowedFormats)
+		return nil, fmt.Errorf("unsupported output format: %q, allowed formats are: %s", o.Output, allowedFormats)
 
 	default:
-		return fmt.Errorf("unknown output format: %q, allowed formats are: %s", o.Output, allowedFormats)
+		return nil, fmt.Errorf("unknown output format: %q, allowed formats are: %s", o.Output, allowedFormats)
 	}
 }
 
@@ -91,7 +111,8 @@ func Execute(o Options, args []string) error {
 	if err := validateArgs(args); err != nil {
 		return err
 	}
-	if err := o.Validate(); err != nil {
+	customColumns, err := o.Validate()
+	if err != nil {
 		return err
 	}
 	var fileEvents chan fsnotify.Event
@@ -139,6 +160,7 @@ func Execute(o Options, args []string) error {
 		HideDeletedAfter: o.HideDeleted,
 		WideOutput:       o.Output == "wide",
 		LabelCols:        o.LabelColumns,
+		CustomColumns:    customColumns,
 	}
 	p := tea.NewProgram(t)
 	w := NewWatcher(o, p, printer, args)
@@ -175,7 +197,7 @@ func Execute(o Options, args []string) error {
 		w.WatchLoop(ctx, restartChan)
 	}()
 
-	_, err := p.Run()
+	_, err = p.Run()
 	return err
 }
 
@@ -283,7 +305,12 @@ func (w *Watcher) watch(ctx context.Context, clearBeforePrinting bool) error {
 		ResourceTypeOrNameArgs(true, w.Args...).
 		SingleResourceType().
 		Latest().
-		TransformRequests(transformRequests).
+		TransformRequests(func(req *rest.Request) {
+			// Custom columns need full objects, not the server-side Table.
+			if accept := acceptHeader(len(w.Printer.CustomColumns) > 0); accept != "" {
+				req.SetHeader("Accept", accept)
+			}
+		}).
 		Do()
 	if err := r.Err(); err != nil {
 		return err
@@ -372,6 +399,8 @@ type Printer struct {
 	WideOutput       bool
 	colDefs          []metav1.TableColumnDefinition
 	LabelCols        []string
+	// CustomColumns, when non-empty, switches the printer to custom-columns mode.
+	CustomColumns []CustomColumn
 
 	info           schema.GroupVersionKind
 	apiVersion     string
@@ -390,12 +419,34 @@ func (p *Printer) Clear() {
 }
 
 func (p *Printer) PrintObj(obj runtime.Object, eventType watch.EventType) (tea.Cmd, error) {
+	if len(p.CustomColumns) > 0 {
+		return p.printCustom(obj, eventType)
+	}
 	objTable, err := decodeIntoTable(obj)
 	if err != nil {
 		return nil, err
 	}
 	p.updateColDefHeaders(objTable)
 	return p.addObjectToTable(objTable, eventType)
+}
+
+// printCustom adds obj to the table in custom-columns mode. Objects are full
+// resources here, since no Table representation is requested.
+func (p *Printer) printCustom(obj runtime.Object, eventType watch.EventType) (tea.Cmd, error) {
+	u, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		return nil, fmt.Errorf("want *unstructured.Unstructured, got %T", obj)
+	}
+	headers := make([]string, len(p.CustomColumns))
+	for i, col := range p.CustomColumns {
+		headers[i] = col.Header
+	}
+	p.Table.SetHeaders(headers)
+	row, err := p.customRow(u, eventType)
+	if err != nil {
+		return nil, err
+	}
+	return p.Table.AddRow(row), nil
 }
 
 func (p *Printer) updateColDefHeaders(objTable *metav1.Table) {
@@ -441,41 +492,13 @@ func (p *Printer) addObjectToTable(objTable *metav1.Table, eventType watch.Event
 		if !ok {
 			return nil, fmt.Errorf("want *unstructured.Unstructured, got %T", row.Object.Object)
 		}
-		metadata, ok := unstrucObj.Object["metadata"].(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("metadata: want map[string]any, got %T", unstrucObj.Object["metadata"])
-		}
-		uid, ok := metadata["uid"].(string)
-		if !ok {
-			return nil, fmt.Errorf("metadata.uid: want string, got %T", metadata["uid"])
-		}
-		name, ok := metadata["name"].(string)
-		if !ok {
-			return nil, fmt.Errorf("metadata.name: want string, got %T", metadata["name"])
-		}
-		creationTimestamp, ok := metadata["creationTimestamp"].(string)
-		if !ok {
-			return nil, fmt.Errorf("metadata.creationTimestamp: want string, got %T", metadata["creationTimestamp"])
-		}
-		creationTime, err := time.Parse(time.RFC3339, creationTimestamp)
+		tableRow, creationTime, err := p.baseRow(unstrucObj, eventType)
 		if err != nil {
-			return nil, fmt.Errorf("metadata.creationTimestamp: %w", err)
+			return nil, err
 		}
-		tableRow := table.Row{
-			ID:                        uid,
-			Fields:                    make([]any, 0, len(p.colDefs)),
-			SortKey:                   name,
-			Suggestion:                name,
-			Kubecolor:                 p.Kubecolor,
-			HasLeadingNamespaceColumn: p.printNamespace,
-		}
-		if p.apiVersion == "v1" && p.kind == "Event" {
-			tableRow.SortKey = creationTimestamp
-		}
+		tableRow.HasLeadingNamespaceColumn = p.printNamespace
 		if p.printNamespace {
-			namespace := metadata["namespace"]
-			tableRow.Fields = append(tableRow.Fields, namespace)
-			tableRow.SortKey = fmt.Sprintf("%s/%s", namespace, tableRow.SortKey)
+			tableRow.Fields = append(tableRow.Fields, unstrucObj.GetNamespace())
 		}
 		for i, cell := range row.Cells {
 			if i >= len(p.colDefs) {
@@ -491,18 +514,145 @@ func (p *Printer) addObjectToTable(objTable *metav1.Table, eventType watch.Event
 		for _, label := range p.LabelCols {
 			tableRow.Fields = append(tableRow.Fields, objLabels[label])
 		}
-		switch eventType {
-		case watch.Error:
-			tableRow.Status = table.StatusError
-		case watch.Deleted:
-			tableRow.MarkDeleted()
-		}
 		// it's fine to only use the latest returned cmd, because of how
 		// [table.Model.AddRow] is implemented
 
 		cmd = p.Table.AddRow(tableRow)
 	}
 	return cmd, nil
+}
+
+// baseRow builds the part of a table row shared by table and custom-columns
+// modes: identity, sort key, suggestion, theme and event status. Fields is
+// left empty and HasLeadingNamespaceColumn false; callers fill both.
+//
+// It returns the row and the object's creation time. It returns an error if
+// metadata.uid, metadata.name or metadata.creationTimestamp is missing or
+// malformed.
+func (p *Printer) baseRow(obj *unstructured.Unstructured, eventType watch.EventType) (table.Row, time.Time, error) {
+	metadata, ok := obj.Object["metadata"].(map[string]any)
+	if !ok {
+		return table.Row{}, time.Time{}, fmt.Errorf("metadata: want map[string]any, got %T", obj.Object["metadata"])
+	}
+	uid, ok := metadata["uid"].(string)
+	if !ok {
+		return table.Row{}, time.Time{}, fmt.Errorf("metadata.uid: want string, got %T", metadata["uid"])
+	}
+	name, ok := metadata["name"].(string)
+	if !ok {
+		return table.Row{}, time.Time{}, fmt.Errorf("metadata.name: want string, got %T", metadata["name"])
+	}
+	creationTimestamp, ok := metadata["creationTimestamp"].(string)
+	if !ok {
+		return table.Row{}, time.Time{}, fmt.Errorf("metadata.creationTimestamp: want string, got %T", metadata["creationTimestamp"])
+	}
+	creationTime, err := time.Parse(time.RFC3339, creationTimestamp)
+	if err != nil {
+		return table.Row{}, time.Time{}, fmt.Errorf("metadata.creationTimestamp: %w", err)
+	}
+	row := table.Row{
+		ID:         uid,
+		SortKey:    name,
+		Suggestion: name,
+		Kubecolor:  p.Kubecolor,
+	}
+	if p.apiVersion == "v1" && p.kind == "Event" {
+		row.SortKey = creationTimestamp
+	}
+	if p.printNamespace {
+		// The namespace keeps the sort order stable in all-namespaces mode
+		// even when no NAMESPACE cell is shown.
+		row.SortKey = fmt.Sprintf("%s/%s", metadata["namespace"], row.SortKey)
+	}
+	switch eventType {
+	case watch.Error:
+		row.Status = table.StatusError
+	case watch.Deleted:
+		row.MarkDeleted()
+	}
+	return row, creationTime, nil
+}
+
+// customRow builds the table row for obj in custom-columns mode: one cell
+// per configured column and no NAMESPACE cell.
+//
+// It returns an error if the object's metadata is malformed (see baseRow).
+// A failing JSONPath expression does not fail the row; it shows in its cell.
+func (p *Printer) customRow(obj *unstructured.Unstructured, eventType watch.EventType) (table.Row, error) {
+	row, _, err := p.baseRow(obj, eventType)
+	if err != nil {
+		return table.Row{}, err
+	}
+	row.Fields = make([]any, 0, len(p.CustomColumns))
+	for _, col := range p.CustomColumns {
+		cell := colorCell(evalCell(col.Path, obj.Object), eventType)
+		// Keep uncolored cells as plain strings: wrapping every value in a
+		// no-op style only adds work for the table renderer.
+		if styled, ok := cell.(table.StyledColumn); ok && styled.Style.GetForeground() == (lipgloss.NoColor{}) {
+			cell = styled.Value
+		}
+		row.Fields = append(row.Fields, cell)
+	}
+	return row, nil
+}
+
+// evalCell evaluates path against obj and renders the result like
+// "kubectl get -o custom-columns": values joined by ",", "<none>" when empty,
+// control characters escaped (see sanitizeCell). An evaluation error is
+// returned as "<error: ...>" so one bad object does not stop the watch.
+func evalCell(path *jsonpath.JSONPath, obj map[string]any) string {
+	values, err := path.FindResults(obj)
+	if err != nil {
+		return sanitizeCell(fmt.Sprintf("<error: %v>", err))
+	}
+	if len(values) == 0 || len(values[0]) == 0 {
+		return "<none>"
+	}
+	var parts []string
+	for _, vs := range values {
+		for _, v := range vs {
+			parts = append(parts, sanitizeCell(fmt.Sprint(v.Interface())))
+		}
+	}
+	return strings.Join(parts, ",")
+}
+
+// sanitizeCell makes s safe to show in a single table cell.
+//
+// It first applies kubectl's printers.EscapeTerminal (ESC becomes "^[", "\r"
+// is handled there), then replaces every remaining control or bidi control
+// rune, line or paragraph separator (Zl, Zp) and invisible format rune (Cf,
+// such as zero-width or soft hyphen) with its Go-quoted form without quotes
+// ("\n", "\t", "\u009b", "\u200b").
+// This deliberately goes further than kubectl: a raw newline would break the
+// TUI layout, and C1, bidi or invisible runes can still alter the terminal or
+// hide text.
+func sanitizeCell(s string) string {
+	s = printers.EscapeTerminal(s)
+	var b strings.Builder
+	for _, r := range s {
+		if unicode.IsControl(r) || unicode.Is(unicode.Bidi_Control, r) ||
+			unicode.In(r, unicode.Zl, unicode.Zp, unicode.Cf) {
+			q := strconv.QuoteRune(r)
+			b.WriteString(q[1 : len(q)-1]) // drop the surrounding apostrophes
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+// colorCell styles a cell as a fraction ("1/2") or a status word. Deleted
+// rows stay unstyled so the grayed-out row is not colored.
+func colorCell(cell any, eventType watch.EventType) any {
+	cellStr := fmt.Sprint(cell)
+	if eventType == watch.Deleted {
+		return cellStr
+	}
+	if fractionStyle, ok := FractionStyle(cellStr); ok {
+		return table.StyledColumn{Value: cell, Style: fractionStyle}
+	}
+	return StatusColumn(cellStr)
 }
 
 func (p *Printer) parseCell(cell any, row metav1.TableRow, eventType watch.EventType, object map[string]any, colDef metav1.TableColumnDefinition, creationTime time.Time) any {
@@ -576,34 +726,26 @@ func (p *Printer) parseCell(cell any, row metav1.TableRow, eventType watch.Event
 			}
 		}
 		return StatusColumn(cellStr)
-	// Only parse fraction (e.g "1/2") if the resources was not deleted,
-	// so we don't have colored fraction on a grayed-out row.
-	case eventType != watch.Deleted:
-		fractionStyle, ok := FractionStyle(cellStr)
-		if ok {
-			return table.StyledColumn{
-				Value: cell,
-				Style: fractionStyle,
-			}
-		}
-		return StatusColumn(cellStr)
 	default:
-		return cellStr
+		return colorCell(cell, eventType)
 	}
 }
 
-func transformRequests(req *rest.Request) {
-	// TODO: Skip if custom column output mode
-
-	//if !o.ServerPrint || !o.IsHumanReadablePrinter {
-	//	return
-	//}
-
-	req.SetHeader("Accept", strings.Join([]string{
+// acceptHeader returns the Accept header value to send to the API server.
+//
+// In table mode it asks for the server-side Table representation, falling
+// back to plain JSON. In custom-columns mode it returns "": the JSONPath
+// expressions apply to full objects, so the Table form must not be requested
+// (kubectl's get does the same outside human-readable printing).
+func acceptHeader(customColumns bool) string {
+	if customColumns {
+		return ""
+	}
+	return strings.Join([]string{
 		fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1.SchemeGroupVersion.Version, metav1.GroupName),
 		fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1beta1.SchemeGroupVersion.Version, metav1beta1.GroupName),
 		"application/json",
-	}, ","))
+	}, ",")
 }
 
 func overrideLipglossWithKubecolor(style *lipgloss.Style, c kubecolor.Color) {

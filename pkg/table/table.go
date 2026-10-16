@@ -513,15 +513,13 @@ func (m *Model) rowView(buf *bytes.Buffer, row Row) {
 	m.columnsView(buf, row.RenderedFields(), style)
 }
 
-var lotsOfSpaces = strings.Repeat(" ", 200)
-
 func (m *Model) columnsView(buf *bytes.Buffer, columns []string, style lipgloss.Style) {
 	for i, col := range columns {
 		if i > 0 {
 			// TODO: test style.Width()
 			spacing := m.CellSpacing + m.columnWidths[i-1] - ansi.PrintableRuneWidth(columns[i-1])
 			if spacing > 0 {
-				fmt.Fprint(buf, lotsOfSpaces[:spacing])
+				buf.WriteString(strings.Repeat(" ", spacing))
 			}
 		}
 		fmt.Fprint(buf, style.Render(col))
