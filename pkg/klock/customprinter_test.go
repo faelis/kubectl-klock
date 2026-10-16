@@ -146,6 +146,30 @@ func TestEvalCell(t *testing.T) {
 			want: `\u202e`,
 		},
 		{
+			name: "invisible U+200B is escaped (Scenario: Caracteres invisibles)",
+			spec: "custom-columns=A:.metadata.annotations.x",
+			obj: map[string]any{"metadata": map[string]any{
+				"annotations": map[string]any{"x": "\u200b"},
+			}},
+			want: `\u200b`,
+		},
+		{
+			name: "invisible U+2028 is escaped (Scenario: Caracteres invisibles)",
+			spec: "custom-columns=A:.metadata.annotations.x",
+			obj: map[string]any{"metadata": map[string]any{
+				"annotations": map[string]any{"x": "\u2028"},
+			}},
+			want: `\u2028`,
+		},
+		{
+			name: "invisible U+FEFF is escaped (Scenario: Caracteres invisibles)",
+			spec: "custom-columns=A:.metadata.annotations.x",
+			obj: map[string]any{"metadata": map[string]any{
+				"annotations": map[string]any{"x": "\ufeff"},
+			}},
+			want: `\ufeff`,
+		},
+		{
 			name: "error message is escaped (Scenario: Message d'erreur echappe)",
 			spec: "custom-columns=X:.metadata.annotations.x[?(@.a)]",
 			obj: map[string]any{"metadata": map[string]any{
