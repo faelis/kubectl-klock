@@ -87,7 +87,7 @@ champ `Printer.CustomColumns []CustomColumn`.
   changement de pipeline nécessaire
 - [x] 5.4 review : judge lance `/review`, aucun constat Critical ou
   Important ouvert
-- [ ] 5.5 security : `/cso`, aucun constat bloquant
+- [x] 5.5 security : `/cso`, aucun constat bloquant
 - [ ] 5.6 adr : `docs/adrs/0001-custom-columns-objets-complets.md`, format
   Nygard
 - [ ] 5.7 release-doc : writer lance `/document-release` sur les docs
