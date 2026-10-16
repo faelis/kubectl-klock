@@ -34,7 +34,7 @@ error)`.
 
 Interface interne : `func acceptHeader(customColumns bool) string`.
 
-- [ ] 2.1 `acceptHeader` et closure `TransformRequests` qui n'envoie pas
+- [x] 2.1 `acceptHeader` et closure `TransformRequests` qui n'envoie pas
   `as=Table` en mode custom ; scénarios « En-tête Accept en mode
   custom-columns », « En-tête Accept en mode tableau » ; vérifié par
   `go test ./pkg/klock`

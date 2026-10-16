@@ -299,7 +299,12 @@ func (w *Watcher) watch(ctx context.Context, clearBeforePrinting bool) error {
 		ResourceTypeOrNameArgs(true, w.Args...).
 		SingleResourceType().
 		Latest().
-		TransformRequests(transformRequests).
+		TransformRequests(func(req *rest.Request) {
+			// Validate already guarantees Output is a valid value.
+			if accept := acceptHeader(strings.HasPrefix(w.Output, "custom-columns")); accept != "" {
+				req.SetHeader("Accept", accept)
+			}
+		}).
 		Do()
 	if err := r.Err(); err != nil {
 		return err
@@ -608,18 +613,21 @@ func (p *Printer) parseCell(cell any, row metav1.TableRow, eventType watch.Event
 	}
 }
 
-func transformRequests(req *rest.Request) {
-	// TODO: Skip if custom column output mode
-
-	//if !o.ServerPrint || !o.IsHumanReadablePrinter {
-	//	return
-	//}
-
-	req.SetHeader("Accept", strings.Join([]string{
+// acceptHeader returns the Accept header value to send to the API server.
+//
+// In table mode it asks for the server-side Table representation, falling
+// back to plain JSON. In custom-columns mode it returns "": the JSONPath
+// expressions apply to full objects, so the Table form must not be requested
+// (kubectl's get does the same outside human-readable printing).
+func acceptHeader(customColumns bool) string {
+	if customColumns {
+		return ""
+	}
+	return strings.Join([]string{
 		fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1.SchemeGroupVersion.Version, metav1.GroupName),
 		fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1beta1.SchemeGroupVersion.Version, metav1beta1.GroupName),
 		"application/json",
-	}, ","))
+	}, ",")
 }
 
 func overrideLipglossWithKubecolor(style *lipgloss.Style, c kubecolor.Color) {
