@@ -68,7 +68,7 @@ champ `Printer.CustomColumns []CustomColumn`.
   `-o custom-columns-file` ; vérifié par `npx markdownlint-cli2` et
   `uvx reuse lint` sans erreur sur les fichiers suivis
 
-## 4bis. Corrections de revue
+## 4b. Corrections de revue
 
 - [x] 4b.1 Assainissement étendu (caractères invisibles `Zl`, `Zp`, `Cf`)
   et en-têtes assainis ; scénarios « Cellule très longue », « Saut de
@@ -85,7 +85,7 @@ champ `Printer.CustomColumns []CustomColumn`.
   suppression
 - [x] 5.3 ci — skipped: `test.yml` lance déjà `go test ./...`, aucun
   changement de pipeline nécessaire
-- [ ] 5.4 review : judge lance `/review`, aucun constat Critical ou
+- [x] 5.4 review : judge lance `/review`, aucun constat Critical ou
   Important ouvert
 - [ ] 5.5 security : `/cso`, aucun constat bloquant
 - [ ] 5.6 adr : `docs/adrs/0001-custom-columns-objets-complets.md`, format

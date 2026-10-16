@@ -24,12 +24,13 @@ direct les mêmes colonnes qu'avec kubectl.
   déjà calculée d'après la valeur (fractions `1/2`, statuts `Running`,
   `Error`…). Les lignes supprimées restent grisées. Les horodatages restent
   bruts.
-- Caractères de contrôle : après `printers.EscapeTerminal`, chaque caractère
-  de contrôle, de contrôle bidirectionnel, séparateur de ligne ou de
-  paragraphe (Zl, Zp) et de format invisible (Cf) s'affiche échappé (`\n`,
-  `\t`, `\u009b`). Valeurs, messages `<error: …>` et en-têtes sont
-  concernés. Choix volontairement plus strict que kubectl : un saut
-  de ligne brut casserait la mise en page de l'interface.
+- Caractères de contrôle : après `printers.EscapeTerminal`, klock échappe
+  aussi les autres caractères invisibles (`\n`, `\t`, `\u009b`). Sont
+  visés les caractères de contrôle, les contrôles bidirectionnels, les
+  séparateurs de ligne ou de paragraphe (Zl, Zp) et les caractères de
+  format (Cf). Valeurs, messages `<error: …>` et en-têtes sont concernés.
+  kubectl ne va pas aussi loin, mais un saut de ligne brut casserait la
+  mise en page de l'interface.
 - `-L` avec custom-columns : erreur, comme kubectl. Un label se lit déjà
   avec `.metadata.labels.<clé>`.
 - `-A` avec custom-columns : pas de colonne `NAMESPACE` ajoutée, comme

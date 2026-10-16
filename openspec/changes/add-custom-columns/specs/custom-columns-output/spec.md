@@ -119,7 +119,7 @@ caractères MUST s'afficher sous une forme visible.
 
 #### Scenario: En-tête avec séquence ANSI
 
-- **WHEN** la spec est `-o custom-columns=` suivi de `X`, de l'octet
+- **WHEN** l'option est `-o custom-columns=` suivie de `X`, de l'octet
   `0x1b`, de `[31m:.metadata.name`
 - **THEN** l'en-tête de la colonne est `X^[[31m`
 - **AND** il ne contient pas l'octet `0x1b`
