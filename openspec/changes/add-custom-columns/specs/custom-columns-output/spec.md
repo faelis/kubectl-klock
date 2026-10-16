@@ -78,16 +78,43 @@ résultat vide MUST s'afficher `<none>`.
 - **THEN** la cellule `X` commence par `<error:`
 - **AND** les autres lignes et le watch continuent
 
+#### Scenario: Cellule très longue
+
+- **WHEN** la première de deux colonnes vaut une chaîne de 300 caractères
+  `a`
+- **THEN** l'affichage de la table réussit, sans panique
+- **AND** il contient la seconde colonne de la ligne
+
 ### Requirement: Échappement des séquences terminal
 
-klock MUST neutraliser les séquences d'échappement terminal présentes dans
-les valeurs des cellules, comme kubectl.
+klock MUST neutraliser les séquences d'échappement terminal et les
+caractères de contrôle présents dans les cellules, valeurs comme messages
+d'erreur. Ces caractères MUST s'afficher sous une forme visible.
 
 #### Scenario: Annotation avec séquence ANSI
 
 - **WHEN** la colonne est `A:.metadata.annotations.x` et que l'annotation
   `x` vaut l'octet `0x1b` suivi de `[31mrouge`
 - **THEN** la cellule affiche `^[[31mrouge`
+- **AND** elle ne contient pas l'octet `0x1b`
+
+#### Scenario: Saut de ligne et tabulation
+
+- **WHEN** la colonne est `A:.metadata.annotations.x` et que l'annotation
+  `x` vaut `l1`, un saut de ligne, `l2`, une tabulation, `t`
+- **THEN** la cellule affiche les six caractères littéraux `l1\nl2\tt`
+- **AND** elle ne contient aucun caractère de contrôle
+
+#### Scenario: Autres caractères de contrôle
+
+- **WHEN** l'annotation `x` contient `U+0007`, `U+009B` ou `U+202E`
+- **THEN** la cellule affiche respectivement `\a`, `\u009b`, `‮`
+
+#### Scenario: Message d'erreur échappé
+
+- **WHEN** la colonne est `X:.metadata.annotations.x[?(@.a)]` et que
+  l'annotation `x` vaut l'octet `0x1b` suivi de `[31m`
+- **THEN** la cellule commence par `<error:`
 - **AND** elle ne contient pas l'octet `0x1b`
 
 ### Requirement: Suivi en direct
