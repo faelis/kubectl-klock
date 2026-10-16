@@ -54,7 +54,7 @@ champ `Printer.CustomColumns []CustomColumn`.
   custom de `PrintObj` (en-têtes, coloration, suppression, pas de
   `NAMESPACE`) ; scénarios « Deux colonnes inline » (cellules),
   « Modification », « Suppression », « Fraction incomplète », « Statut
-  d'erreur », « Ligne supprimée », « Toutes les namespaces » ; vérifié par
+  d'erreur », « Ligne supprimée », « Tous les namespaces » ; vérifié par
   `go test ./...`, tests du mode tableau toujours verts
 - [x] 3.3 `Execute` branche les colonnes sur `Printer` et la requête ;
   vérifié par `go build ./...` et `go vet ./...`

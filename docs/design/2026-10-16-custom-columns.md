@@ -46,10 +46,9 @@ klock demande les objets complets et évalue lui-même le JSONPath.
    (`get.go`, `transformRequests`).
 3. `Printer.PrintObj` choisit son chemin. Le mode tableau ne change pas. Le
    mode custom pose les en-têtes `Column.Header` à chaque événement, puis
-   évalue chaque
-   colonne avec `client-go/util/jsonpath` : `AllowMissingKeys(true)`,
-   valeurs jointes par `,`, `<none>` quand rien ne correspond. Les
-   expressions sont parsées une seule fois.
+   évalue chaque colonne avec `client-go/util/jsonpath` :
+   `AllowMissingKeys(true)`, valeurs jointes par `,`, `<none>` quand rien ne
+   correspond. Les expressions sont parsées une seule fois.
 4. L'extraction des métadonnées (`uid`, `name`, `namespace`,
    `creationTimestamp`) sort de `addObjectToTable` dans une fonction commune.
    Le tri, le filtre et `--hide-deleted` marchent ainsi dans les deux modes.
@@ -74,8 +73,8 @@ et ne coupe pas le watch.
 
 Tests unitaires : parsing des options (spec, fichier, valeur vide, `-L`) et
 `PrintObj` en mode custom sur des objets unstructured (champ absent, valeurs
-multiples, suppression, en-têtes). Pas de test e2e : le CI n'a pas de
-cluster.
+multiples, suppression, en-têtes). Le CI n'a pas de cluster : le test e2e
+se fait à la main, sur un cluster `kind` jetable.
 
 ## Taille
 
