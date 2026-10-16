@@ -60,7 +60,7 @@ n'entre pas dans la surface de sécurité. Rapport du helper :
 ## Constats
 
 | ID | Sév. | Conf. | Lieu | Impact |
-|----|------|-------|------|--------|
+| --- | --- | --- | --- | --- |
 | C1 | Medium | moyenne | `klock.go:730` | échappements bruts, mode tableau |
 | C2 | Low | haute | `customcolumns.go:69` | ESC brut sur stderr |
 | C3 | Low | haute | `klock.go:634` | usurpation visuelle |
