@@ -90,6 +90,12 @@ kubectl klock pods
 # Watch all pods with more information (such as node name)
 kubectl klock pods -o wide
 
+# Watch pods with columns of your choice, written as JSONPath expressions
+kubectl klock pods -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName
+
+# Same, but with the columns read from a file
+kubectl klock pods -o custom-columns-file=columns.txt
+
 # Watch a specific pod
 kubectl klock pods my-pod-7d68885db5-6dfst
 
@@ -123,6 +129,45 @@ There's also some hotkeys available:
                           ↑/ctrl+p show previous suggestion
                           tab      accept a suggestion
 ```
+
+### Custom columns
+
+The flag `-o custom-columns=SPEC` picks the columns to show,
+like `kubectl get -o custom-columns`.
+`SPEC` is a comma-separated list of `HEADER:jsonpath` pairs.
+Each expression is evaluated on the full object, so you can show fields
+that are missing from the server's table, such as the container image:
+
+```sh
+kubectl klock pods -o custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[0].image
+```
+
+The flag `-o custom-columns-file=FILE` reads the same spec from a file.
+The first line holds the headers and the second line holds the expressions,
+both separated by blanks:
+
+```text
+NAME            NODE
+.metadata.name  .spec.nodeName
+```
+
+How the cells are filled:
+
+- An expression with no result shows `<none>`.
+- An expression with several results shows them joined by `,`.
+- Fractions (e.g. `1/1`) and statuses (e.g. `Running`) get the same colors
+  as in the regular table.
+
+Limits:
+
+- `-o custom-columns` cannot be combined with `-L`/`--label-columns`.
+  klock exits with an error, like kubectl does.
+- `-A` does not add a `NAMESPACE` column. Add one yourself with
+  `NAMESPACE:.metadata.namespace`.
+- Headers are always shown. There is no `--no-headers`.
+
+You can also set the format with `KLOCK_OUTPUT`,
+for example `KLOCK_OUTPUT="custom-columns=NAME:.metadata.name"`.
 
 ## Features
 
