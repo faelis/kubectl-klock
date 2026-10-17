@@ -91,10 +91,12 @@ Interface interne : `func boundCell(s string) string`, constante
   et `reviews/review-2.md` (`REVIEW: PASS`, 0 Critical/Important)
 - [x] 5.5 security : judge `/cso`, PASS ; vérifié par `reviews/cso-1.md`
   (N1 Medium corrigé en 4c.1) et `reviews/cso-2.md` (`CSO: PASS`)
-- [ ] 5.6 adr : `docs/adrs/0002-…`, format Nygard
-- [ ] 5.7 release-doc : writer `/document-release` ; README, phrase sur
+- [x] 5.6 adr : `docs/adrs/0002-echappement-sortie-terminal.md`, format
+  Nygard ; vérifié par markdownlint et `uvx reuse lint`
+- [x] 5.7 release-doc : writer `/document-release` ; README, phrase sur
   l'échappement complétée (mode table, borne de 1024 caractères,
-  sélecteurs de variante laissés intacts)
+  sélecteurs de variante laissés intacts) ; vérifié par markdownlint et
+  `uvx reuse lint`
 
 ## Workflow follow-up
 
