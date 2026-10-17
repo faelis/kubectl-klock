@@ -39,15 +39,17 @@ en majuscules. Les valeurs de labels sont recopiées sans traitement.
    même.
 4. **Longueur.** Nouvelle fonction interne `boundCell(s string) string` :
    au-delà de `maxCellRunes = 1024` points de code, elle garde les 1024
-   premiers et ajoute `…`. `evalCell` l'applique au résultat joint, le mode
-   table à chaque cellule texte. Une fonction à part plutôt que dans
+   premiers et ajoute `…`. `evalCell` l'applique au résultat joint et à la
+   cellule `<error: …>`, le mode table à chaque cellule texte. Une fonction à part plutôt que dans
    `sanitizeCell` : `evalCell` échappe chaque valeur avant la jointure, et
-   la borne porte sur la cellule entière. En-têtes et messages d'erreur ne
-   sont pas bornés.
+   la borne porte sur la cellule entière. Les en-têtes et les messages
+   d'erreur de `-o` ne sont pas bornés.
 5. **Messages d'erreur de `-o`.** `ParseCustomColumns` passe le texte des
    erreurs de kubectl et du parseur JSONPath par `sanitizeCell`.
-   `Options.Validate` échappe `o.Output` dans le refus de `-L`. Les autres
-   refus utilisent déjà `%q`, qui échappe les caractères de contrôle.
+   `Options.Validate` échappe `o.Output` dans tous ses refus, entre
+   guillemets droits. `%q` ne suffit pas : il laisse U+3164 brut, car Go le
+   tient pour imprimable. Pour la même raison, l'en-tête déjà échappé
+   s'insère entre guillemets sans `%q`, qui doublerait les antislashs.
 
 ## Risks / Trade-offs
 
@@ -57,7 +59,7 @@ en majuscules. Les valeurs de labels sont recopiées sans traitement.
 - La borne masque la fin des valeurs très longues ; `…` le signale.
   `-o custom-columns` permet de cibler une sous-partie de la valeur.
 - `fmt.Sprint` sur une liste ou un objet donne le même texte qu'avant :
-  seul l'échappement change l'affichage.
+  seuls l'échappement et la borne changent l'affichage.
 
 ## Journalisation
 

@@ -94,8 +94,8 @@ Ces caractères MUST s'afficher sous une forme visible.
 - **WHEN** l'option est `-o custom-columns=A`, suivie d'un saut de ligne,
   suivie de `:.a[`
 - **THEN** klock s'arrête en erreur
-- **AND** le message commence par `column "A\n": `, avec un seul
-  antislash
+- **AND** le message commence par `column "A\n":` suivi d'une
+  espace, avec un seul antislash
 
 ## ADDED Requirements
 
