@@ -44,3 +44,48 @@ func TestBoundCell(t *testing.T) {
 		})
 	}
 }
+
+// Scenario: Message d'erreur borné (custom-columns-output). A JSONPath
+// filter on a string yields an error cell that must stay bounded.
+func TestEvalCellErrorBounded(t *testing.T) {
+	cols := mustColumns(t, "custom-columns=X:.metadata.annotations.x[?(@.a)]")
+	obj := map[string]any{"metadata": map[string]any{
+		"annotations": map[string]any{"x": strings.Repeat("a", 5000)},
+	}}
+	got := evalCell(cols[0].Path, obj)
+	if !strings.HasPrefix(got, "<error:") {
+		t.Errorf("evalCell = %.40q..., want prefix %q", got, "<error:")
+	}
+	if n := utf8.RuneCountInString(got); n != 1025 {
+		t.Errorf("rune count = %d, want 1025", n)
+	}
+	if !strings.HasSuffix(got, "…") {
+		t.Errorf("suffix ellipsis = false, want true")
+	}
+}
+
+// Scenario: Format refusé avec caractère ignorable (custom-columns-output).
+func TestValidateRefusedFormatIgnorable(t *testing.T) {
+	_, err := Options{Output: "json" + "\u3164"}.Validate()
+	if err == nil {
+		t.Fatal("Validate error = nil, want error")
+	}
+	if !strings.Contains(err.Error(), `json\u3164`) {
+		t.Errorf("error = %q, want it to contain literal %q", err, `json\u3164`)
+	}
+	if strings.Contains(err.Error(), "\u3164") {
+		t.Errorf("error = %q, must not contain U+3164", err)
+	}
+}
+
+// Scenario: En-tête échappé une seule fois dans les erreurs
+// (custom-columns-output).
+func TestParseCustomColumnsHeaderEscapedOnce(t *testing.T) {
+	_, err := ParseCustomColumns("custom-columns=A" + "\n" + ":.a[")
+	if err == nil {
+		t.Fatal("ParseCustomColumns error = nil, want error")
+	}
+	if want := `column "A\n": `; !strings.HasPrefix(err.Error(), want) {
+		t.Errorf("error = %q, want prefix %q", err, want)
+	}
+}
