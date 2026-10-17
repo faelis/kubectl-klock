@@ -302,3 +302,69 @@ func TestTableModeCellBounded(t *testing.T) {
 		})
 	}
 }
+
+// roleObj builds a Role object with the given namespace and name.
+func roleObj(namespace, name string) *unstructured.Unstructured {
+	obj := newPod(namespace, name, "u-role", nil)
+	obj.Object["apiVersion"] = "rbac.authorization.k8s.io/v1"
+	obj.Object["kind"] = "Role"
+	return obj
+}
+
+// filterView opens the filter of p's table, types prefix and returns the
+// view; the completion suggestion is rendered after the typed text.
+func filterView(t *testing.T, p *Printer, prefix string) string {
+	t.Helper()
+	p.Table.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	p.Table.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(prefix)})
+	return p.Table.View()
+}
+
+// Scenario: Role au nom piege (table-output).
+func TestTableModeSuggestionEscaped(t *testing.T) {
+	name := "r\x1b]52;c;eA==\x07"
+	p := &Printer{Table: table.New()}
+	p.Configure(podGVK, false)
+	p.Table.Update(tea.WindowSizeMsg{Width: 5000, Height: 50})
+	tbl := tableOf([]colDef{{"Name", "string"}}, []any{name}, roleObj("default", name).Object)
+	if _, err := p.PrintObj(tbl, watch.Added); err != nil {
+		t.Fatalf("PrintObj: %v", err)
+	}
+
+	view := filterView(t, p, "r")
+	checkNoRaw(t, view)
+	// The first line is the filter input: typed "r" plus the suggestion rest.
+	filterLine, _, _ := strings.Cut(view, "\n")
+	if want := `r^[]52;c;eA==\a`; !strings.Contains(filterLine, want) {
+		t.Errorf("filter line lacks escaped suggestion %q:\n%q", want, filterLine)
+	}
+}
+
+// Scenario: Suggestion en mode custom-columns (table-output).
+func TestCustomRowSuggestionEscaped(t *testing.T) {
+	p := customPrinter(t, "custom-columns=NAME:.metadata.name", false)
+	row, err := p.customRow(roleObj("default", "r\x1b"), watch.Added)
+	if err != nil {
+		t.Fatalf("customRow: %v", err)
+	}
+	if got, want := row.Suggestion, "r^["; got != want {
+		t.Errorf("Suggestion = %q, want %q", got, want)
+	}
+}
+
+// Scenario: Namespace piege avec -A (table-output).
+func TestTableModeNamespaceCellEscaped(t *testing.T) {
+	p := &Printer{Table: table.New()}
+	p.Configure(podGVK, true)
+	p.Table.Update(tea.WindowSizeMsg{Width: 5000, Height: 50})
+	tbl := tableOf([]colDef{{"Name", "string"}}, []any{"ok"}, roleObj("n\x1b", "nginx").Object)
+	if _, err := p.PrintObj(tbl, watch.Added); err != nil {
+		t.Fatalf("PrintObj: %v", err)
+	}
+
+	view := p.Table.View()
+	checkNoRaw(t, view)
+	if !strings.Contains(view, "n^[") {
+		t.Errorf("View lacks escaped namespace cell %q:\n%q", "n^[", view)
+	}
+}
