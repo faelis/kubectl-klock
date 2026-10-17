@@ -66,9 +66,10 @@ Interface interne : `func boundCell(s string) string`, constante
 
 - [x] 5.1 verify : skeptic, chaque scénario du delta, verdict PASS ;
   vérifié par le rapport du skeptic (`VERDICT: PASS`, 0 Critical/Important)
-- [ ] 5.2 e2e : cluster kind jetable, Event dont le message contient une
+- [x] 5.2 e2e : cluster kind jetable, Event dont le message contient une
   séquence OSC 52, `klock events` affiche `^[]52;…` ; contexte `dok-test`
-  et `~/.kube/config` non touchés
+  et `~/.kube/config` non touchés ; vérifié par le rapport e2e (11 étapes
+  OK, `E2E: GREEN`, cluster supprimé)
 - [x] 5.3 ci — skipped: aucun changement de pipeline
   (`.github/workflows/` inchangé)
 - [ ] 5.4 review : judge `/review`, PASS
