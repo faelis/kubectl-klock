@@ -112,3 +112,29 @@ de `…`.
 - **WHEN** une cellule vaut 1000 fois `a` suivi de 100 sauts de ligne
 - **THEN** la cellule affiche 1000 fois `a`, puis 12 fois `\n`, puis
   `…`
+
+### Requirement: Échappement des suggestions du filtre
+
+klock MUST échapper le nom de chaque objet avant de le proposer en
+suggestion dans le filtre, en mode table comme en mode custom-columns. La
+cellule `NAMESPACE` de `-A` MUST être échappée de la même façon.
+
+#### Scenario: Role au nom piégé
+
+- **WHEN** klock reçoit un Role nommé `r`, suivi de l'octet `0x1b`, de
+  `]52;c;eA==`, puis de l'octet `0x07`
+- **THEN** la suggestion du filtre pour cet objet est
+  `r^[]52;c;eA==\a`
+- **AND** elle ne contient ni l'octet `0x1b` ni l'octet `0x07`
+
+#### Scenario: Suggestion en mode custom-columns
+
+- **WHEN** l'option est `-o custom-columns=NAME:.metadata.name` et que
+  klock reçoit un Role nommé `r` suivi de l'octet `0x1b`
+- **THEN** la suggestion du filtre pour cet objet est `r^[`
+
+#### Scenario: Namespace piégé avec -A
+
+- **WHEN** l'option est `-A` et qu'un objet reçu a pour namespace `n`
+  suivi de l'octet `0x1b`
+- **THEN** la cellule `NAMESPACE` affiche `n^[`

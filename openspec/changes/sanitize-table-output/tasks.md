@@ -70,6 +70,13 @@ Interface interne : `func boundCell(s string) string`, constante
   ignorable », « En-tête échappé une seule fois dans les erreurs » ;
   vérifié par `go test ./pkg/klock`
 
+## 4c. Corrections de sécurité
+
+- [ ] 4c.1 Nom échappé dans la suggestion du filtre, namespace échappé
+  dans la cellule `NAMESPACE` ; scénarios « Role au nom piégé »,
+  « Suggestion en mode custom-columns », « Namespace piégé avec -A » ;
+  vérifié par `go test ./pkg/klock`
+
 ## 5. Vérification et livraison
 
 - [x] 5.1 verify : skeptic, chaque scénario du delta, verdict PASS ;

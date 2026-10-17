@@ -52,6 +52,12 @@ en majuscules. Les valeurs de labels sont recopiées sans traitement.
    s'insère lui aussi entre guillemets droits : `%q` doublerait ses
    antislashs.
 
+6. **Noms et namespaces.** `baseRow` échappe le nom avant de le placer
+   dans `Row.Suggestion`, ce qui couvre les deux modes. La clé de tri
+   garde le nom brut : elle n'est jamais affichée. `addObjectToTable`
+   échappe le namespace de la cellule `NAMESPACE`. Les noms RBAC suivent
+   la règle des segments de chemin : seuls `/` et `%` y sont interdits.
+
 ## Risks / Trade-offs
 
 - Un texte coréen qui utilise U+3164 (remplissage Hangul) s'affiche

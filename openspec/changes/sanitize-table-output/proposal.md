@@ -27,6 +27,9 @@ ici.
   invalide, combinaison avec `-L` (C2).
 - Chaque cellule est bornée à 1024 caractères suivis de `…`, dans les
   deux modes (C4).
+- Suggestions du filtre et cellule `NAMESPACE` échappées : les noms de
+  Role et de ClusterRole acceptent les caractères de contrôle (constat N1
+  de `reviews/cso-1.md`).
 - README : la phrase sur l'échappement précise que les sélecteurs de
   variante restent intacts, pour les emoji (C5).
 
@@ -60,8 +63,6 @@ aucune brique ni décision d'architecture nouvelle.
 
 - Sélecteurs de variante (U+FE0E, U+FE0F, U+E0100…) : les échapper
   casserait l'affichage des emoji.
-- Noms et namespaces : l'API les valide, ils ne peuvent pas contenir ces
-  caractères.
 - Erreurs du watch ou du serveur affichées par `Table.SetError`.
 - Pagination de la liste initiale.
 - Longueur maximale configurable.
