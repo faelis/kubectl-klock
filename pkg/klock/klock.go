@@ -82,6 +82,8 @@ func (o Options) Validate() ([]CustomColumn, error) {
 		}
 		return cols, nil
 	}
+	// Not %q below: it leaves printable ignorables (U+3164) raw, sanitizeCell
+	// escapes them.
 	switch o.Output {
 	case "", "wide":
 		// Valid
@@ -89,10 +91,10 @@ func (o Options) Validate() ([]CustomColumn, error) {
 	case "go-template",
 		"go-template-file", "json", "jsonpath", "jsonpath-as-json",
 		"jsonpath-file", "name", "template", "templatefile", "yaml":
-		return nil, fmt.Errorf("unsupported output format: %q, allowed formats are: %s", o.Output, allowedFormats)
+		return nil, fmt.Errorf("unsupported output format: \"%s\", allowed formats are: %s", sanitizeCell(o.Output), allowedFormats)
 
 	default:
-		return nil, fmt.Errorf("unknown output format: %q, allowed formats are: %s", o.Output, allowedFormats)
+		return nil, fmt.Errorf("unknown output format: \"%s\", allowed formats are: %s", sanitizeCell(o.Output), allowedFormats)
 	}
 }
 
@@ -607,12 +609,13 @@ func (p *Printer) customRow(obj *unstructured.Unstructured, eventType watch.Even
 
 // evalCell evaluates path against obj and renders the result like
 // "kubectl get -o custom-columns": values joined by ",", "<none>" when empty,
-// control characters escaped (see sanitizeCell). An evaluation error is
-// returned as "<error: ...>" so one bad object does not stop the watch.
+// control characters escaped (see sanitizeCell) and the result bounded to
+// maxCellRunes runes (see boundCell). An evaluation error is returned as
+// "<error: ...>", bounded too, so one bad object does not stop the watch.
 func evalCell(path *jsonpath.JSONPath, obj map[string]any) string {
 	values, err := path.FindResults(obj)
 	if err != nil {
-		return sanitizeCell(fmt.Sprintf("<error: %v>", err))
+		return boundCell(sanitizeCell(fmt.Sprintf("<error: %v>", err)))
 	}
 	if len(values) == 0 || len(values[0]) == 0 {
 		return "<none>"

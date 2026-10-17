@@ -66,7 +66,8 @@ func ParseCustomColumns(output string) ([]CustomColumn, error) {
 		header := sanitizeCell(col.Header)
 		path := jsonpath.New(header).AllowMissingKeys(true)
 		if err := path.Parse(col.FieldSpec); err != nil {
-			return nil, fmt.Errorf("column %q: %s", header, sanitizeCell(err.Error()))
+			// Not %q: header is already escaped, %q would double backslashes.
+			return nil, fmt.Errorf("column \"%s\": %s", header, sanitizeCell(err.Error()))
 		}
 		result[i] = CustomColumn{Header: header, Path: path}
 	}

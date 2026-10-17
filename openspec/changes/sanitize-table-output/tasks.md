@@ -64,7 +64,7 @@ Interface interne : `func boundCell(s string) string`, constante
 
 ## 4b. Corrections de revue
 
-- [ ] 4b.1 Cellule `<error: …>` bornée, `-o` refusé échappé sans `%q`,
+- [x] 4b.1 Cellule `<error: …>` bornée, `-o` refusé échappé sans `%q`,
   en-tête échappé une seule fois dans les erreurs, docstring d'`evalCell` ;
   scénarios « Message d'erreur borné », « Format refusé avec caractère
   ignorable », « En-tête échappé une seule fois dans les erreurs » ;
