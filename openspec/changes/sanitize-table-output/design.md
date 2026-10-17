@@ -40,16 +40,16 @@ en majuscules. Les valeurs de labels sont recopiées sans traitement.
 4. **Longueur.** Nouvelle fonction interne `boundCell(s string) string` :
    au-delà de `maxCellRunes = 1024` points de code, elle garde les 1024
    premiers et ajoute `…`. `evalCell` l'applique au résultat joint et à la
-   cellule `<error: …>`, le mode table à chaque cellule texte. Une fonction à part plutôt que dans
-   `sanitizeCell` : `evalCell` échappe chaque valeur avant la jointure, et
-   la borne porte sur la cellule entière. Les en-têtes et les messages
+   cellule `<error: …>`, le mode table à chaque cellule texte. C'est une
+   fonction à part, hors de `sanitizeCell` : `evalCell` échappe chaque
+   valeur avant la jointure, et la borne porte sur la cellule entière. Les en-têtes et les messages
    d'erreur de `-o` ne sont pas bornés.
 5. **Messages d'erreur de `-o`.** `ParseCustomColumns` passe le texte des
    erreurs de kubectl et du parseur JSONPath par `sanitizeCell`.
    `Options.Validate` échappe `o.Output` dans tous ses refus, entre
    guillemets droits. `%q` ne suffit pas : il laisse U+3164 brut, car Go le
-   tient pour imprimable. Pour la même raison, l'en-tête déjà échappé
-   s'insère entre guillemets sans `%q`, qui doublerait les antislashs.
+   tient pour imprimable. L'en-tête, déjà échappé, s'insère lui aussi entre
+   guillemets droits : `%q` doublerait ses antislashs.
 
 ## Risks / Trade-offs
 
