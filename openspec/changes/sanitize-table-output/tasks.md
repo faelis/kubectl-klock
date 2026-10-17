@@ -80,7 +80,8 @@ Interface interne : `func boundCell(s string) string`, constante
   OK, `E2E: GREEN`, cluster supprimé)
 - [x] 5.3 ci — skipped: aucun changement de pipeline
   (`.github/workflows/` inchangé)
-- [ ] 5.4 review : judge `/review`, PASS
+- [x] 5.4 review : judge `/review`, PASS ; vérifié par `reviews/review-1.md`
+  et `reviews/review-2.md` (`REVIEW: PASS`, 0 Critical/Important)
 - [ ] 5.5 security : judge `/cso`, PASS
 - [ ] 5.6 adr : `docs/adrs/0002-…`, format Nygard
 - [ ] 5.7 release-doc : writer `/document-release` ; README, phrase sur

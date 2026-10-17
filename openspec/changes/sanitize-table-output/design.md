@@ -46,10 +46,11 @@ en majuscules. Les valeurs de labels sont recopiées sans traitement.
    en-têtes et les messages d'erreur de `-o` ne sont pas bornés.
 5. **Messages d'erreur de `-o`.** `ParseCustomColumns` passe le texte des
    erreurs de kubectl et du parseur JSONPath par `sanitizeCell`.
-   `Options.Validate` échappe `o.Output` dans tous ses refus, entre
-   guillemets droits. `%q` ne suffit pas : il laisse U+3164 brut, car Go le
-   tient pour imprimable. L'en-tête, déjà échappé, s'insère lui aussi entre
-   guillemets droits : `%q` doublerait ses antislashs.
+   `Options.Validate` échappe `o.Output` dans tous ses refus. Les formats
+   refusés s'affichent entre guillemets droits, sans `%q` : il laisse
+   U+3164 brut, car Go le tient pour imprimable. L'en-tête, déjà échappé,
+   s'insère lui aussi entre guillemets droits : `%q` doublerait ses
+   antislashs.
 
 ## Risks / Trade-offs
 

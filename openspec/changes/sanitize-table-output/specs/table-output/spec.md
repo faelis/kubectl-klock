@@ -19,9 +19,9 @@ séquence terminal ni de caractère invisible.
 klock MUST neutraliser les séquences d'échappement terminal, les
 caractères de contrôle et les caractères invisibles. Cette règle porte sur
 chaque cellule texte, liste ou objet de la `Table` du serveur, avec les
-règles du mode custom-columns. Les cellules numériques, booléennes ou nulles MUST
-s'afficher comme avant. La coloration des statuts et des fractions MUST
-porter sur la valeur échappée.
+règles du mode custom-columns. Les cellules numériques, booléennes ou
+nulles MUST s'afficher comme avant. La coloration des statuts et des
+fractions MUST porter sur la valeur échappée.
 
 #### Scenario: Message d'Event avec OSC 52
 
