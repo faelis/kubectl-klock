@@ -143,11 +143,8 @@ that are missing from the server's table, such as the container image:
 kubectl klock pods -o 'custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[0].image'
 ```
 
-Control characters, bidirectional controls, line and paragraph separators
-and invisible format characters are shown escaped (for example `\n` for a
-newline). This applies to values, to `<error: ...>` messages and to
-headers, so a newline or a terminal escape sequence cannot break the
-table layout.
+Custom column values and `<error: ...>` messages are escaped and cut like
+any other cell, see [Features](#features).
 
 The flag `-o custom-columns-file=FILE` reads the same spec from a file.
 The first line holds the headers and the second line holds the expressions,
@@ -195,6 +192,16 @@ for example `KLOCK_OUTPUT="custom-columns=NAME:.metadata.name"`.
   such as when changed by [kubectx](https://github.com/ahmetb/kubectx).
 
 - Color themes powered by [kubecolor](https://kubecolor.github.io/)
+
+- Safe cell text, in the default table and in custom columns alike.
+  Cells, headers, `-L` label columns, the NAMESPACE column, filter
+  suggestions and `-o` error messages show control characters,
+  bidirectional controls, line and paragraph separators, invisible format
+  characters and other default-ignorable characters (such as U+3164)
+  escaped, for example `\n` for a newline. A newline or a terminal escape
+  sequence cannot break the table layout or hide text.
+  Variation selectors are left as is, so emoji render normally.
+  A table cell longer than 1024 characters is cut and ends with `…`.
 
 - Shows deleted table rows for a short duration,
   controllable via the `--hide-deleted=10s` flag

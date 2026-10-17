@@ -78,10 +78,12 @@ func (o Options) Validate() ([]CustomColumn, error) {
 	}
 	if cols != nil {
 		if len(o.LabelColumns) > 0 {
-			return nil, fmt.Errorf("--label-columns option cannot be used with %s printer", o.Output)
+			return nil, fmt.Errorf("--label-columns option cannot be used with %s printer", sanitizeCell(o.Output))
 		}
 		return cols, nil
 	}
+	// Not %q below: it leaves printable ignorables (U+3164) raw, sanitizeCell
+	// escapes them.
 	switch o.Output {
 	case "", "wide":
 		// Valid
@@ -89,10 +91,10 @@ func (o Options) Validate() ([]CustomColumn, error) {
 	case "go-template",
 		"go-template-file", "json", "jsonpath", "jsonpath-as-json",
 		"jsonpath-file", "name", "template", "templatefile", "yaml":
-		return nil, fmt.Errorf("unsupported output format: %q, allowed formats are: %s", o.Output, allowedFormats)
+		return nil, fmt.Errorf("unsupported output format: \"%s\", allowed formats are: %s", sanitizeCell(o.Output), allowedFormats)
 
 	default:
-		return nil, fmt.Errorf("unknown output format: %q, allowed formats are: %s", o.Output, allowedFormats)
+		return nil, fmt.Errorf("unknown output format: \"%s\", allowed formats are: %s", sanitizeCell(o.Output), allowedFormats)
 	}
 }
 
@@ -466,7 +468,8 @@ func (p *Printer) updateColDefHeaders(objTable *metav1.Table) {
 	}
 	for _, colDef := range objTable.ColumnDefinitions {
 		if colDef.Priority == 0 || p.WideOutput {
-			headers = append(headers, strings.ToUpper(colDef.Name))
+			// Escape after upper-casing: "\u202e" must not become "\U202E".
+			headers = append(headers, sanitizeCell(strings.ToUpper(colDef.Name)))
 		}
 	}
 	for _, label := range p.LabelCols {
@@ -477,7 +480,7 @@ func (p *Printer) updateColDefHeaders(objTable *metav1.Table) {
 }
 
 func labelColumnHeader(label string) string {
-	label = strings.ToUpper(label)
+	label = sanitizeCell(strings.ToUpper(label))
 	index := strings.LastIndexByte(label, '/')
 	if index == -1 {
 		return label
@@ -498,7 +501,7 @@ func (p *Printer) addObjectToTable(objTable *metav1.Table, eventType watch.Event
 		}
 		tableRow.HasLeadingNamespaceColumn = p.printNamespace
 		if p.printNamespace {
-			tableRow.Fields = append(tableRow.Fields, unstrucObj.GetNamespace())
+			tableRow.Fields = append(tableRow.Fields, sanitizeCell(unstrucObj.GetNamespace()))
 		}
 		for i, cell := range row.Cells {
 			if i >= len(p.colDefs) {
@@ -508,11 +511,19 @@ func (p *Printer) addObjectToTable(objTable *metav1.Table, eventType watch.Event
 			if colDef.Priority != 0 && !p.WideOutput {
 				continue
 			}
+			// Escape once here so every parseCell branch gets safe text,
+			// including the ones that return the cell as is. Numbers and
+			// booleans cannot carry control characters; nil stays nil.
+			switch cell.(type) {
+			case nil, bool, int, int32, int64, float32, float64:
+			default:
+				cell = boundCell(sanitizeCell(fmt.Sprint(cell)))
+			}
 			tableRow.Fields = append(tableRow.Fields, p.parseCell(cell, row, eventType, unstrucObj.Object, colDef, creationTime))
 		}
 		objLabels := unstrucObj.GetLabels()
 		for _, label := range p.LabelCols {
-			tableRow.Fields = append(tableRow.Fields, objLabels[label])
+			tableRow.Fields = append(tableRow.Fields, sanitizeCell(objLabels[label]))
 		}
 		// it's fine to only use the latest returned cmd, because of how
 		// [table.Model.AddRow] is implemented
@@ -551,9 +562,11 @@ func (p *Printer) baseRow(obj *unstructured.Unstructured, eventType watch.EventT
 		return table.Row{}, time.Time{}, fmt.Errorf("metadata.creationTimestamp: %w", err)
 	}
 	row := table.Row{
-		ID:         uid,
+		ID: uid,
+		// SortKey stays raw: it is only compared, never displayed.
+		// Suggestion is shown in the filter hints, so it is escaped.
 		SortKey:    name,
-		Suggestion: name,
+		Suggestion: sanitizeCell(name),
 		Kubecolor:  p.Kubecolor,
 	}
 	if p.apiVersion == "v1" && p.kind == "Event" {
@@ -598,12 +611,13 @@ func (p *Printer) customRow(obj *unstructured.Unstructured, eventType watch.Even
 
 // evalCell evaluates path against obj and renders the result like
 // "kubectl get -o custom-columns": values joined by ",", "<none>" when empty,
-// control characters escaped (see sanitizeCell). An evaluation error is
-// returned as "<error: ...>" so one bad object does not stop the watch.
+// control characters escaped (see sanitizeCell) and the result bounded to
+// maxCellRunes runes (see boundCell). An evaluation error is returned as
+// "<error: ...>", bounded too, so one bad object does not stop the watch.
 func evalCell(path *jsonpath.JSONPath, obj map[string]any) string {
 	values, err := path.FindResults(obj)
 	if err != nil {
-		return sanitizeCell(fmt.Sprintf("<error: %v>", err))
+		return boundCell(sanitizeCell(fmt.Sprintf("<error: %v>", err)))
 	}
 	if len(values) == 0 || len(values[0]) == 0 {
 		return "<none>"
@@ -614,16 +628,32 @@ func evalCell(path *jsonpath.JSONPath, obj map[string]any) string {
 			parts = append(parts, sanitizeCell(fmt.Sprint(v.Interface())))
 		}
 	}
-	return strings.Join(parts, ",")
+	return boundCell(strings.Join(parts, ","))
+}
+
+// maxCellRunes is the longest cell, in runes, that boundCell keeps.
+const maxCellRunes = 1024
+
+// boundCell truncates s to maxCellRunes runes and appends "…" when it cut
+// something. Call it after sanitizeCell: the cut may then split an escape
+// (e.g. `aaaa\` + "…"), which leaves plain ASCII, never a raw rune.
+func boundCell(s string) string {
+	r := []rune(s)
+	if len(r) <= maxCellRunes {
+		return s
+	}
+	return string(r[:maxCellRunes]) + "…"
 }
 
 // sanitizeCell makes s safe to show in a single table cell.
 //
 // It first applies kubectl's printers.EscapeTerminal (ESC becomes "^[", "\r"
 // is handled there), then replaces every remaining control or bidi control
-// rune, line or paragraph separator (Zl, Zp) and invisible format rune (Cf,
-// such as zero-width or soft hyphen) with its Go-quoted form without quotes
-// ("\n", "\t", "\u009b", "\u200b").
+// rune, line or paragraph separator (Zl, Zp), invisible format rune (Cf,
+// such as zero-width or soft hyphen) and other default-ignorable rune (such
+// as U+3164 or U+034F) with its ASCII-quoted form without quotes ("\n",
+// "\t", "\u009b", "\u200b"). ASCII quoting matters: strconv.QuoteRune
+// leaves printable ignorables like U+3164 raw.
 // This deliberately goes further than kubectl: a raw newline would break the
 // TUI layout, and C1, bidi or invisible runes can still alter the terminal or
 // hide text.
@@ -632,8 +662,9 @@ func sanitizeCell(s string) string {
 	var b strings.Builder
 	for _, r := range s {
 		if unicode.IsControl(r) || unicode.Is(unicode.Bidi_Control, r) ||
-			unicode.In(r, unicode.Zl, unicode.Zp, unicode.Cf) {
-			q := strconv.QuoteRune(r)
+			unicode.In(r, unicode.Zl, unicode.Zp, unicode.Cf) ||
+			unicode.Is(unicode.Other_Default_Ignorable_Code_Point, r) {
+			q := strconv.QuoteRuneToASCII(r)
 			b.WriteString(q[1 : len(q)-1]) // drop the surrounding apostrophes
 			continue
 		}

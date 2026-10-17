@@ -50,7 +50,7 @@ func ParseCustomColumns(output string) ([]CustomColumn, error) {
 	}
 	if err != nil {
 		// kubectl's file-not-found message ends with a newline.
-		return nil, errors.New(strings.TrimSpace(err.Error()))
+		return nil, errors.New(sanitizeCell(strings.TrimSpace(err.Error())))
 	}
 	cc, ok := printer.(*get.CustomColumnsPrinter)
 	if !ok {
@@ -66,7 +66,8 @@ func ParseCustomColumns(output string) ([]CustomColumn, error) {
 		header := sanitizeCell(col.Header)
 		path := jsonpath.New(header).AllowMissingKeys(true)
 		if err := path.Parse(col.FieldSpec); err != nil {
-			return nil, fmt.Errorf("column %q: %w", header, err)
+			// Not %q: header is already escaped, %q would double backslashes.
+			return nil, fmt.Errorf("column \"%s\": %s", header, sanitizeCell(err.Error()))
 		}
 		result[i] = CustomColumn{Header: header, Path: path}
 	}
