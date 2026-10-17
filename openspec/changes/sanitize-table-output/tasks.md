@@ -64,7 +64,8 @@ Interface interne : `func boundCell(s string) string`, constante
 
 ## 5. Vérification et livraison
 
-- [ ] 5.1 verify : skeptic, chaque scénario du delta, verdict PASS
+- [x] 5.1 verify : skeptic, chaque scénario du delta, verdict PASS ;
+  vérifié par le rapport du skeptic (`VERDICT: PASS`, 0 Critical/Important)
 - [ ] 5.2 e2e : cluster kind jetable, Event dont le message contient une
   séquence OSC 52, `klock events` affiche `^[]52;…` ; contexte `dok-test`
   et `~/.kube/config` non touchés
