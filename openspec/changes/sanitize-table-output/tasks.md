@@ -1,0 +1,82 @@
+<!--
+SPDX-FileCopyrightText: 2026 faelis
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
+# Tasks
+
+## 0. Revue du plan
+
+- [ ] 0.1 plan-rev : taille S, accord de l'utilisateur sur proposal, specs,
+  design et tasks
+
+## 1. Échappement étendu
+
+Interface interne (`pkg/klock`) : `func sanitizeCell(s string) string`,
+inchangée.
+
+- [ ] 1.1 `sanitizeCell` échappe aussi `Other_Default_Ignorable_Code_Point`
+  et écrit chaque rune en ASCII ; scénarios « Caractères ignorables par
+  défaut », « Annotation avec séquence ANSI », « Saut de ligne et
+  tabulation », « Autres caractères de contrôle », « Caractères
+  invisibles » ; vérifié par `go test ./pkg/klock`
+
+## 2. Mode table
+
+Interfaces internes : `func (p *Printer) addObjectToTable(objTable
+*metav1.Table, eventType watch.EventType) (tea.Cmd, error)`, `func (p
+*Printer) updateColDefHeaders(objTable *metav1.Table)`, `func
+labelColumnHeader(label string) string`, toutes inchangées.
+
+- [ ] 2.1 Cellules texte, liste et objet échappées avant `parseCell` ;
+  scénarios « Message d'Event avec OSC 52 », « Saut de ligne dans une
+  colonne de CR », « Caractère invisible en mode table », « Cellule
+  liste », « Valeur numérique inchangée », « Statut toujours coloré » ;
+  vérifié par `go test ./pkg/klock`
+- [ ] 2.2 En-têtes et colonnes `-L` échappés ; scénarios « Nom de colonne
+  avec séquence ANSI », « Échappement après les majuscules », « Clé de
+  label avec séquence ANSI », « Valeur de label avec séquence ANSI » ;
+  vérifié par `go test ./pkg/klock`
+
+## 3. Messages d'erreur de `-o`
+
+Interfaces : `func ParseCustomColumns(output string) ([]CustomColumn,
+error)`, `func (o Options) Validate() ([]CustomColumn, error)`,
+inchangées.
+
+- [ ] 3.1 Erreurs de kubectl, du parseur JSONPath et refus de `-L`
+  échappés ; scénarios « Spec sans deux-points échappée », « Expression
+  invalide échappée », « Combinaison avec -L échappée » ; vérifié par
+  `go test ./pkg/klock`
+
+## 4. Longueur des cellules
+
+Interface interne : `func boundCell(s string) string`, constante
+`maxCellRunes = 1024`.
+
+- [ ] 4.1 `boundCell` appliquée au résultat de `evalCell` et aux cellules
+  texte du mode table ; scénarios « Cellule de 2000 caractères »,
+  « Cellule de 1024 caractères », « Borne après échappement », « Valeur de
+  2000 caractères », « Valeurs jointes trop longues », « Cellule très
+  longue » ; vérifié par `go test ./...`
+
+## 5. Vérification et livraison
+
+- [ ] 5.1 verify : skeptic, chaque scénario du delta, verdict PASS
+- [ ] 5.2 e2e : cluster kind jetable, Event dont le message contient une
+  séquence OSC 52, `klock events` affiche `^[]52;…` ; contexte `dok-test`
+  et `~/.kube/config` non touchés
+- [x] 5.3 ci — skipped: aucun changement de pipeline
+  (`.github/workflows/` inchangé)
+- [ ] 5.4 review : judge `/review`, PASS
+- [ ] 5.5 security : judge `/cso`, PASS
+- [ ] 5.6 adr : `docs/adrs/0002-…`, format Nygard
+- [ ] 5.7 release-doc : writer `/document-release` ; README, phrase sur
+  l'échappement complétée (mode table, borne de 1024 caractères,
+  sélecteurs de variante laissés intacts)
+
+## Workflow follow-up
+
+- archive : `openspec archive sanitize-table-output --yes`
+- ship : push sur le fork, PR vers `applejag/kubectl-klock`
