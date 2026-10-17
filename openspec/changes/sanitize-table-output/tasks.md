@@ -62,6 +62,14 @@ Interface interne : `func boundCell(s string) string`, constante
   2000 caractères », « Valeurs jointes trop longues », « Cellule très
   longue » ; vérifié par `go test ./...`
 
+## 4b. Corrections de revue
+
+- [ ] 4b.1 Cellule `<error: …>` bornée, `-o` refusé échappé sans `%q`,
+  en-tête échappé une seule fois dans les erreurs, docstring d'`evalCell` ;
+  scénarios « Message d'erreur borné », « Format refusé avec caractère
+  ignorable », « En-tête échappé une seule fois dans les erreurs » ;
+  vérifié par `go test ./pkg/klock`
+
 ## 5. Vérification et livraison
 
 - [x] 5.1 verify : skeptic, chaque scénario du delta, verdict PASS ;

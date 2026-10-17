@@ -11,8 +11,8 @@ SPDX-License-Identifier: CC-BY-4.0
 ### Requirement: Échappement des séquences terminal
 
 klock MUST neutraliser les séquences d'échappement terminal, les
-caractères de contrôle et les caractères invisibles présents dans les
-cellules (valeurs comme messages d'erreur), dans les en-têtes et dans les
+caractères de contrôle et les caractères invisibles. Cette règle porte sur
+les cellules (valeurs comme messages d'erreur), les en-têtes et les
 messages d'erreur de l'option `-o`. Les caractères invisibles comprennent
 les caractères ignorables par défaut (`Other_Default_Ignorable_Code_Point`).
 Ces caractères MUST s'afficher sous une forme visible.
@@ -83,6 +83,20 @@ Ces caractères MUST s'afficher sous une forme visible.
 - **THEN** klock s'arrête en erreur
 - **AND** le message ne contient pas l'octet `0x1b`
 
+#### Scenario: Format refusé avec caractère ignorable
+
+- **WHEN** l'option est `-o json` suivie de U+3164
+- **THEN** klock s'arrête en erreur
+- **AND** le message contient `json\u3164` et ne contient pas U+3164
+
+#### Scenario: En-tête échappé une seule fois dans les erreurs
+
+- **WHEN** l'option est `-o custom-columns=A`, suivie d'un saut de ligne,
+  suivie de `:.a[`
+- **THEN** klock s'arrête en erreur
+- **AND** le message commence par `column "A\n": `, avec un seul
+  antislash
+
 ## ADDED Requirements
 
 ### Requirement: Longueur des cellules bornée
@@ -102,3 +116,10 @@ afficher les 1024 premiers suivis de `…`.
 - **WHEN** la colonne est `C:.spec.containers[*].image` et que le pod a
   deux conteneurs dont les images comptent 600 caractères chacune
 - **THEN** la cellule `C` compte 1025 caractères et finit par `…`
+
+#### Scenario: Message d'erreur borné
+
+- **WHEN** la colonne est `X:.metadata.annotations.x[?(@.a)]` et que
+  l'annotation `x` vaut 5000 fois `a`
+- **THEN** la cellule `X` commence par `<error:`, compte 1025 caractères
+  et finit par `…`
