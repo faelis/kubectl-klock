@@ -8,8 +8,9 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ## 0. Revue du plan
 
-- [ ] 0.1 plan-rev : taille S, accord de l'utilisateur sur proposal, specs,
-  design et tasks
+- [x] 0.1 plan-rev : taille S, accord de l'utilisateur sur proposal, specs,
+  design et tasks ; vérifié par sa réponse dans la session (« ok, validé,
+  lance l'exécution »)
 
 ## 1. Échappement étendu
 
