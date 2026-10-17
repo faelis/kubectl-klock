@@ -89,7 +89,8 @@ Interface interne : `func boundCell(s string) string`, constante
   (`.github/workflows/` inchangé)
 - [x] 5.4 review : judge `/review`, PASS ; vérifié par `reviews/review-1.md`
   et `reviews/review-2.md` (`REVIEW: PASS`, 0 Critical/Important)
-- [ ] 5.5 security : judge `/cso`, PASS
+- [x] 5.5 security : judge `/cso`, PASS ; vérifié par `reviews/cso-1.md`
+  (N1 Medium corrigé en 4c.1) et `reviews/cso-2.md` (`CSO: PASS`)
 - [ ] 5.6 adr : `docs/adrs/0002-…`, format Nygard
 - [ ] 5.7 release-doc : writer `/document-release` ; README, phrase sur
   l'échappement complétée (mode table, borne de 1024 caractères,
