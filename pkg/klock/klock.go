@@ -78,7 +78,7 @@ func (o Options) Validate() ([]CustomColumn, error) {
 	}
 	if cols != nil {
 		if len(o.LabelColumns) > 0 {
-			return nil, fmt.Errorf("--label-columns option cannot be used with %s printer", o.Output)
+			return nil, fmt.Errorf("--label-columns option cannot be used with %s printer", sanitizeCell(o.Output))
 		}
 		return cols, nil
 	}
@@ -466,7 +466,8 @@ func (p *Printer) updateColDefHeaders(objTable *metav1.Table) {
 	}
 	for _, colDef := range objTable.ColumnDefinitions {
 		if colDef.Priority == 0 || p.WideOutput {
-			headers = append(headers, strings.ToUpper(colDef.Name))
+			// Escape after upper-casing: "\u202e" must not become "\U202E".
+			headers = append(headers, sanitizeCell(strings.ToUpper(colDef.Name)))
 		}
 	}
 	for _, label := range p.LabelCols {
@@ -477,7 +478,7 @@ func (p *Printer) updateColDefHeaders(objTable *metav1.Table) {
 }
 
 func labelColumnHeader(label string) string {
-	label = strings.ToUpper(label)
+	label = sanitizeCell(strings.ToUpper(label))
 	index := strings.LastIndexByte(label, '/')
 	if index == -1 {
 		return label
@@ -508,11 +509,19 @@ func (p *Printer) addObjectToTable(objTable *metav1.Table, eventType watch.Event
 			if colDef.Priority != 0 && !p.WideOutput {
 				continue
 			}
+			// Escape once here so every parseCell branch gets safe text,
+			// including the ones that return the cell as is. Numbers and
+			// booleans cannot carry control characters; nil stays nil.
+			switch cell.(type) {
+			case nil, bool, int, int32, int64, float32, float64:
+			default:
+				cell = boundCell(sanitizeCell(fmt.Sprint(cell)))
+			}
 			tableRow.Fields = append(tableRow.Fields, p.parseCell(cell, row, eventType, unstrucObj.Object, colDef, creationTime))
 		}
 		objLabels := unstrucObj.GetLabels()
 		for _, label := range p.LabelCols {
-			tableRow.Fields = append(tableRow.Fields, objLabels[label])
+			tableRow.Fields = append(tableRow.Fields, sanitizeCell(objLabels[label]))
 		}
 		// it's fine to only use the latest returned cmd, because of how
 		// [table.Model.AddRow] is implemented
@@ -614,16 +623,31 @@ func evalCell(path *jsonpath.JSONPath, obj map[string]any) string {
 			parts = append(parts, sanitizeCell(fmt.Sprint(v.Interface())))
 		}
 	}
-	return strings.Join(parts, ",")
+	return boundCell(strings.Join(parts, ","))
+}
+
+// maxCellRunes is the longest cell, in runes, that boundCell keeps.
+const maxCellRunes = 1024
+
+// boundCell truncates s to maxCellRunes runes and appends "…" when it cut
+// something. Call it after sanitizeCell so escapes are counted, not split.
+func boundCell(s string) string {
+	r := []rune(s)
+	if len(r) <= maxCellRunes {
+		return s
+	}
+	return string(r[:maxCellRunes]) + "…"
 }
 
 // sanitizeCell makes s safe to show in a single table cell.
 //
 // It first applies kubectl's printers.EscapeTerminal (ESC becomes "^[", "\r"
 // is handled there), then replaces every remaining control or bidi control
-// rune, line or paragraph separator (Zl, Zp) and invisible format rune (Cf,
-// such as zero-width or soft hyphen) with its Go-quoted form without quotes
-// ("\n", "\t", "\u009b", "\u200b").
+// rune, line or paragraph separator (Zl, Zp), invisible format rune (Cf,
+// such as zero-width or soft hyphen) and other default-ignorable rune (such
+// as U+3164 or U+034F) with its ASCII-quoted form without quotes ("\n",
+// "\t", "\u009b", "\u200b"). ASCII quoting matters: strconv.QuoteRune
+// leaves printable ignorables like U+3164 raw.
 // This deliberately goes further than kubectl: a raw newline would break the
 // TUI layout, and C1, bidi or invisible runes can still alter the terminal or
 // hide text.
@@ -632,8 +656,9 @@ func sanitizeCell(s string) string {
 	var b strings.Builder
 	for _, r := range s {
 		if unicode.IsControl(r) || unicode.Is(unicode.Bidi_Control, r) ||
-			unicode.In(r, unicode.Zl, unicode.Zp, unicode.Cf) {
-			q := strconv.QuoteRune(r)
+			unicode.In(r, unicode.Zl, unicode.Zp, unicode.Cf) ||
+			unicode.Is(unicode.Other_Default_Ignorable_Code_Point, r) {
+			q := strconv.QuoteRuneToASCII(r)
 			b.WriteString(q[1 : len(q)-1]) // drop the surrounding apostrophes
 			continue
 		}

@@ -17,7 +17,7 @@ SPDX-License-Identifier: CC-BY-4.0
 Interface interne (`pkg/klock`) : `func sanitizeCell(s string) string`,
 inchangée.
 
-- [ ] 1.1 `sanitizeCell` échappe aussi `Other_Default_Ignorable_Code_Point`
+- [x] 1.1 `sanitizeCell` échappe aussi `Other_Default_Ignorable_Code_Point`
   et écrit chaque rune en ASCII ; scénarios « Caractères ignorables par
   défaut », « Annotation avec séquence ANSI », « Saut de ligne et
   tabulation », « Autres caractères de contrôle », « Caractères
@@ -30,12 +30,12 @@ Interfaces internes : `func (p *Printer) addObjectToTable(objTable
 *Printer) updateColDefHeaders(objTable *metav1.Table)`, `func
 labelColumnHeader(label string) string`, toutes inchangées.
 
-- [ ] 2.1 Cellules texte, liste et objet échappées avant `parseCell` ;
+- [x] 2.1 Cellules texte, liste et objet échappées avant `parseCell` ;
   scénarios « Message d'Event avec OSC 52 », « Saut de ligne dans une
   colonne de CR », « Caractère invisible en mode table », « Cellule
   liste », « Valeur numérique inchangée », « Statut toujours coloré » ;
   vérifié par `go test ./pkg/klock`
-- [ ] 2.2 En-têtes et colonnes `-L` échappés ; scénarios « Nom de colonne
+- [x] 2.2 En-têtes et colonnes `-L` échappés ; scénarios « Nom de colonne
   avec séquence ANSI », « Échappement après les majuscules », « Clé de
   label avec séquence ANSI », « Valeur de label avec séquence ANSI » ;
   vérifié par `go test ./pkg/klock`
@@ -46,7 +46,7 @@ Interfaces : `func ParseCustomColumns(output string) ([]CustomColumn,
 error)`, `func (o Options) Validate() ([]CustomColumn, error)`,
 inchangées.
 
-- [ ] 3.1 Erreurs de kubectl, du parseur JSONPath et refus de `-L`
+- [x] 3.1 Erreurs de kubectl, du parseur JSONPath et refus de `-L`
   échappés ; scénarios « Spec sans deux-points échappée », « Expression
   invalide échappée », « Combinaison avec -L échappée » ; vérifié par
   `go test ./pkg/klock`
@@ -56,7 +56,7 @@ inchangées.
 Interface interne : `func boundCell(s string) string`, constante
 `maxCellRunes = 1024`.
 
-- [ ] 4.1 `boundCell` appliquée au résultat de `evalCell` et aux cellules
+- [x] 4.1 `boundCell` appliquée au résultat de `evalCell` et aux cellules
   texte du mode table ; scénarios « Cellule de 2000 caractères »,
   « Cellule de 1024 caractères », « Borne après échappement », « Valeur de
   2000 caractères », « Valeurs jointes trop longues », « Cellule très
