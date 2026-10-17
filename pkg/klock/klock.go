@@ -501,7 +501,7 @@ func (p *Printer) addObjectToTable(objTable *metav1.Table, eventType watch.Event
 		}
 		tableRow.HasLeadingNamespaceColumn = p.printNamespace
 		if p.printNamespace {
-			tableRow.Fields = append(tableRow.Fields, unstrucObj.GetNamespace())
+			tableRow.Fields = append(tableRow.Fields, sanitizeCell(unstrucObj.GetNamespace()))
 		}
 		for i, cell := range row.Cells {
 			if i >= len(p.colDefs) {
@@ -562,9 +562,11 @@ func (p *Printer) baseRow(obj *unstructured.Unstructured, eventType watch.EventT
 		return table.Row{}, time.Time{}, fmt.Errorf("metadata.creationTimestamp: %w", err)
 	}
 	row := table.Row{
-		ID:         uid,
+		ID: uid,
+		// SortKey stays raw: it is only compared, never displayed.
+		// Suggestion is shown in the filter hints, so it is escaped.
 		SortKey:    name,
-		Suggestion: name,
+		Suggestion: sanitizeCell(name),
 		Kubecolor:  p.Kubecolor,
 	}
 	if p.apiVersion == "v1" && p.kind == "Event" {
@@ -633,7 +635,8 @@ func evalCell(path *jsonpath.JSONPath, obj map[string]any) string {
 const maxCellRunes = 1024
 
 // boundCell truncates s to maxCellRunes runes and appends "…" when it cut
-// something. Call it after sanitizeCell so escapes are counted, not split.
+// something. Call it after sanitizeCell: the cut may then split an escape
+// (e.g. `aaaa\` + "…"), which leaves plain ASCII, never a raw rune.
 func boundCell(s string) string {
 	r := []rune(s)
 	if len(r) <= maxCellRunes {
