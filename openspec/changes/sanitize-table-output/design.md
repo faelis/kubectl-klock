@@ -42,8 +42,8 @@ en majuscules. Les valeurs de labels sont recopiées sans traitement.
    premiers et ajoute `…`. `evalCell` l'applique au résultat joint et à la
    cellule `<error: …>`, le mode table à chaque cellule texte. C'est une
    fonction à part, hors de `sanitizeCell` : `evalCell` échappe chaque
-   valeur avant la jointure, et la borne porte sur la cellule entière. Les en-têtes et les messages
-   d'erreur de `-o` ne sont pas bornés.
+   valeur avant la jointure, et la borne porte sur la cellule entière. Les
+   en-têtes et les messages d'erreur de `-o` ne sont pas bornés.
 5. **Messages d'erreur de `-o`.** `ParseCustomColumns` passe le texte des
    erreurs de kubectl et du parseur JSONPath par `sanitizeCell`.
    `Options.Validate` échappe `o.Output` dans tous ses refus, entre
